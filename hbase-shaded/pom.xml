@@ -154,6 +154,10 @@
                                 <relocations>
                                     <!-- top level com not including sun-->
                                     <relocation>
+                                        <pattern>com.amazonaws</pattern>
+                                        <shadedPattern>${shaded.prefix}.com.amazonaws</shadedPattern>
+                                    </relocation>
+                                    <relocation>
                                         <pattern>com.cedarsoftware</pattern>
                                         <shadedPattern>${shaded.prefix}.com.cedarsoftware</shadedPattern>
                                     </relocation>
@@ -532,6 +536,16 @@
                                       <exclude>krb5_udp-template.conf</exclude>
                                       <exclude>ccache.txt</exclude>
                                       <exclude>keytab.txt</exclude>
+                                    </excludes>
+                                  </filter>
+                                  <!-- Exclude some garbage from the AWS java sdk that we don't need to talk to S3 -->
+                                  <filter>
+                                    <artifact>com.amazonaws:aws-java-sdk-bundle</artifact>
+                                    <excludes>
+                                      <exclude>.gitkeep</exclude>
+                                      <exclude>builddef.lst</exclude>
+                                      <exclude>mime.types</exclude>
+                                      <exclude>models/*</exclude>
                                     </excludes>
                                   </filter>
                                 </filters>
