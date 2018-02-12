@@ -521,6 +521,10 @@ public class RegionStates {
     }
   }
 
+  public void deleteRegions(final List<RegionInfo> regionInfos) {
+    regionInfos.forEach(this::deleteRegion);
+  }
+
   ArrayList<RegionStateNode> getTableRegionStateNodes(final TableName tableName) {
     final ArrayList<RegionStateNode> regions = new ArrayList<RegionStateNode>();
     for (RegionStateNode node: regionsMap.tailMap(tableName.getName()).values()) {
@@ -780,7 +784,6 @@ public class RegionStates {
     setServerState(serverName, ServerState.OFFLINE);
   }
 
-  @VisibleForTesting
   public void updateRegionState(final RegionInfo regionInfo, final State state) {
     final RegionStateNode regionNode = getOrCreateRegionStateNode(regionInfo);
     synchronized (regionNode) {
