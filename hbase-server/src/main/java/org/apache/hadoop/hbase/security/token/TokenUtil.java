@@ -30,6 +30,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.ipc.CoprocessorRpcChannel;
 import org.apache.hadoop.hbase.protobuf.generated.AuthenticationProtos;
@@ -59,6 +60,19 @@ public class TokenUtil {
   private static void injectFault() throws ServiceException {
     if (injectedException != null) {
       throw injectedException;
+    }
+  }
+
+  /**
+   * @deprecated Keeping it for spark for now
+   * @param conf
+   * @return
+   * @throws IOException
+   */
+  public static Token<AuthenticationTokenIdentifier> obtainToken(
+      Configuration conf) throws IOException {
+    try (Connection connection = ConnectionFactory.createConnection(conf)) {
+      return obtainToken(connection);
     }
   }
 
