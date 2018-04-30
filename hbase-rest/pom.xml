@@ -244,6 +244,10 @@
          <groupId>com.sun.jersey</groupId>
          <artifactId>jersey-core</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>com.sun.jersey</groupId>
+          <artifactId>jersey-server</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
