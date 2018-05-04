@@ -203,6 +203,7 @@ import org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.RegionServe
 import org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.RegionSpecifier;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.RegionSpecifier.RegionSpecifierType;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.LockServiceProtos.LockService;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos.GetLastFlushedSequenceIdRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos.GetLastFlushedSequenceIdResponse;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos.RegionServerReportRequest;
@@ -1091,15 +1092,6 @@ public class HRegionServer extends HasThread implements
     if (this.compactSplitThread != null) this.compactSplitThread.interruptIfNecessary();
     sendShutdownInterrupt();
 
-    // Stop the quota manager
-    if (rsQuotaManager != null) {
-      rsQuotaManager.stop();
-    }
-    if (rsSpaceQuotaManager != null) {
-      rsSpaceQuotaManager.stop();
-      rsSpaceQuotaManager = null;
-    }
-
     // Stop the snapshot and other procedure handlers, forcefully killing all running tasks
     if (rspmHost != null) {
       rspmHost.stop(this.abortRequested || this.killed);
@@ -1143,6 +1135,15 @@ public class HRegionServer extends HasThread implements
     if (!this.killed && this.fsOk) {
       waitOnAllRegionsToClose(abortRequested);
       LOG.info("stopping server " + this.serverName + "; all regions closed.");
+    }
+
+    // Stop the quota manager
+    if (rsQuotaManager != null) {
+      rsQuotaManager.stop();
+    }
+    if (rsSpaceQuotaManager != null) {
+      rsSpaceQuotaManager.stop();
+      rsSpaceQuotaManager = null;
     }
 
     //fsOk flag may be changed when closing regions throws exception.
