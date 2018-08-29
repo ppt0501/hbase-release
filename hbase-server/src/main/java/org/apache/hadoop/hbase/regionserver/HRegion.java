@@ -2840,7 +2840,8 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
     status.setStatus(msg);
 
     if (rsServices != null && rsServices.getMetrics() != null) {
-      rsServices.getMetrics().updateFlush(time,
+      rsServices.getMetrics().updateFlush(getTableDescriptor().getTableName().getNameAsString(),
+          time,
           mss.getDataSize(), flushedOutputFileSize);
     }
 
