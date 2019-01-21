@@ -974,10 +974,8 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
 
     // Use maximum of log sequenceid or that which was found in stores
     // (particularly if no recovered edits, seqid will be -1).
-    // always get openSeqNum from the default replica, even if we are secondary replicas
-    long maxSeqIdFromFile = WALSplitter.getMaxRegionSequenceId(conf,
-      RegionReplicaUtil.getRegionInfoForDefaultReplica(getRegionInfo()), this::getFilesystem,
-      this::getWalFileSystem);
+    long maxSeqIdFromFile =
+        WALSplitter.getMaxRegionSequenceId(getWalFileSystem(), getWALRegionDirOfDefaultReplica());
     long nextSeqId = Math.max(maxSeqId, maxSeqIdFromFile) + 1;
     // The openSeqNum will always be increase even for read only region, as we rely on it to
     // determine whether a region has been successfully reopened, so here we always need to update
@@ -1893,6 +1891,19 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
           getRegionInfo().getEncodedName());
     }
     return regionDir;
+  }
+
+  /**
+   * @return the Region directory under WALRootDirectory; in case of secondary replica return the
+   *         region directory corresponding to its default replica
+   * @throws IOException if there is an error getting WALRootDir
+   */
+  private Path getWALRegionDirOfDefaultReplica() throws IOException {
+    RegionInfo regionInfo = getRegionInfo();
+    if (!RegionReplicaUtil.isDefaultReplica(regionInfo)) {
+      regionInfo = RegionReplicaUtil.getRegionInfoForDefaultReplica(regionInfo);
+    }
+    return FSUtils.getWALRegionDir(conf, regionInfo.getTable(), regionInfo.getEncodedName());
   }
 
   @Override
