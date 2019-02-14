@@ -19,9 +19,9 @@
 package org.apache.hadoop.hbase.master.procedure;
 
 import java.io.IOException;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.ServerName;
@@ -78,6 +78,17 @@ public class RSProcedureDispatcher
     this.master = master;
     this.rsStartupWaitTime = master.getConfiguration().getLong(
       RS_RPC_STARTUP_WAIT_TIME_CONF_KEY, DEFAULT_RS_RPC_STARTUP_WAIT_TIME);
+  }
+
+  @Override
+  protected UncaughtExceptionHandler getUncaughtExceptionHandler() {
+    return new UncaughtExceptionHandler() {
+
+      @Override
+      public void uncaughtException(Thread t, Throwable e) {
+        LOG.error("Unexpected error caught, this may cause the procedure to hang forever", e);
+      }
+    };
   }
 
   @Override
@@ -141,9 +152,7 @@ public class RSProcedureDispatcher
   /**
    * Base remote call
    */
-  protected abstract class AbstractRSRemoteCall implements Callable<Void> {
-    @Override
-    public abstract Void call();
+  protected abstract class AbstractRSRemoteCall implements Runnable {
 
     private final ServerName serverName;
 
@@ -265,10 +274,9 @@ public class RSProcedureDispatcher
     }
 
     @Override
-    public Void call() {
+    public void run() {
       remoteCallFailed(procedureEnv,
         new RegionServerStoppedException("Server " + getServerName() + " is not online"));
-      return null;
     }
   }
 
@@ -288,7 +296,7 @@ public class RSProcedureDispatcher
     }
 
     @Override
-    public Void call() {
+    public void run() {
       request = ExecuteProceduresRequest.newBuilder();
       if (LOG.isTraceEnabled()) {
         LOG.trace("Building request with operations count=" + remoteProcedures.size());
@@ -306,7 +314,6 @@ public class RSProcedureDispatcher
           remoteCallFailed(procedureEnv, e);
         }
       }
-      return null;
     }
 
     @Override
@@ -378,7 +385,7 @@ public class RSProcedureDispatcher
     }
 
     @Override
-    public Void call() {
+    public void run() {
       final OpenRegionRequest request =
           buildOpenRegionRequest(procedureEnv, getServerName(), operations);
 
@@ -393,7 +400,6 @@ public class RSProcedureDispatcher
           remoteCallFailed(procedureEnv, e);
         }
       }
-      return null;
     }
 
     private OpenRegionResponse sendRequest(final ServerName serverName,
@@ -436,7 +442,7 @@ public class RSProcedureDispatcher
     }
 
     @Override
-    public Void call() {
+    public void run() {
       final CloseRegionRequest request = operation.buildCloseRegionRequest(getServerName());
       try {
         CloseRegionResponse response = sendRequest(getServerName(), request);
@@ -449,7 +455,6 @@ public class RSProcedureDispatcher
           remoteCallFailed(procedureEnv, e);
         }
       }
-      return null;
     }
 
     private CloseRegionResponse sendRequest(final ServerName serverName,
