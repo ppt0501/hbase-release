@@ -365,7 +365,9 @@ public class IntegrationTestBackupRestore extends IntegrationTestBase {
    */
   protected boolean checkSucceeded(String backupId) throws IOException {
     BackupInfo status = getBackupInfo(backupId);
-    if (status == null) return false;
+    if (status == null) {
+      return false;
+    }
     return status.getState() == BackupState.COMPLETE;
   }
 
@@ -447,6 +449,8 @@ public class IntegrationTestBackupRestore extends IntegrationTestBase {
     addOptWithArg(NUMBER_OF_TABLES_KEY,
       "Total number of tables in the test." + " Default: " + DEFAULT_NUMBER_OF_TABLES);
     addOptWithArg(BACKUP_ROOT_KEY, "Path to backup destination");
+    addOptWithArg(SLEEP_TIME_KEY, "Sleep time of chaos monkey in ms " +
+            "to restart random region server. Default: " + SLEEP_TIME_DEFAULT);
 
   }
 
@@ -467,12 +471,17 @@ public class IntegrationTestBackupRestore extends IntegrationTestBase {
     numTables = Integer.parseInt(cmd.getOptionValue(NUMBER_OF_TABLES_KEY,
       Integer.toString(DEFAULT_NUMBER_OF_TABLES)));
     backupRoot = cmd.getOptionValue(BACKUP_ROOT_KEY, DEFAULT_BACKUP_ROOT);
+    sleepTime = Long.parseLong(cmd.getOptionValue(SLEEP_TIME_KEY,
+      Long.toString(SLEEP_TIME_DEFAULT)));
 
-    LOG.info(MoreObjects.toStringHelper("Parsed Options").
-      add(REGION_COUNT_KEY, regionsCountPerServer)
-      .add(REGIONSERVER_COUNT_KEY, regionServerCount).add(ROWS_PER_ITERATION_KEY, rowsInIteration)
+    LOG.info(MoreObjects.toStringHelper("Parsed Options")
+      .add(REGION_COUNT_KEY, regionsCountPerServer)
+      .add(REGIONSERVER_COUNT_KEY, regionServerCount)
+      .add(ROWS_PER_ITERATION_KEY, rowsInIteration)
+      .add(NUM_ITERATIONS_KEY, numIterations)
       .add(BACKUP_ROOT_KEY, backupRoot)
       .add(NUMBER_OF_TABLES_KEY, numTables)
+      .add(SLEEP_TIME_KEY, sleepTime)
       .toString());
   }
 
