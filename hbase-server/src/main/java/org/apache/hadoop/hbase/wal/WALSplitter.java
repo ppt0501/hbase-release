@@ -538,37 +538,23 @@ public class WALSplitter {
 
   /**
    * Check whether there is recovered.edits in the region dir
-   * @param walFS FileSystem
    * @param conf conf
    * @param regionInfo the region to check
    * @throws IOException IOException
    * @return true if recovered.edits exist in the region dir
    */
-  public static boolean hasRecoveredEdits(final FileSystem walFS,
-      final Configuration conf, final RegionInfo regionInfo) throws IOException {
+  public static boolean hasRecoveredEdits(final Configuration conf,
+    final RegionInfo regionInfo) throws IOException {
     // No recovered.edits for non default replica regions
     if (regionInfo.getReplicaId() != RegionInfo.DEFAULT_REPLICA_ID) {
       return false;
     }
-    // Only default replica region can reach here, so we can use regioninfo
-    // directly without converting it to default replica's regioninfo.
-    Path regionWALDir =
-        FSUtils.getWALRegionDir(conf, regionInfo.getTable(), regionInfo.getEncodedName());
-    Path regionDir = FSUtils.getRegionDirFromRootDir(FSUtils.getRootDir(conf), regionInfo);
-    Path wrongRegionWALDir =
-        FSUtils.getWrongWALRegionDir(conf, regionInfo.getTable(), regionInfo.getEncodedName());
-    FileSystem walFs = FSUtils.getWALFileSystem(conf);
-    FileSystem rootFs = FSUtils.getRootDirFileSystem(conf);
-    NavigableSet<Path> files = getSplitEditFilesSorted(walFs, regionWALDir);
-    if (!files.isEmpty()) {
-      return true;
-    }
-    files = getSplitEditFilesSorted(rootFs, regionDir);
-    if (!files.isEmpty()) {
-      return true;
-    }
-    files = getSplitEditFilesSorted(walFs, wrongRegionWALDir);
-    return !files.isEmpty();
+    //Only default replica region can reach here, so we can use regioninfo
+    //directly without converting it to default replica's regioninfo.
+    Path regionDir = FSUtils.getWALRegionDir(conf, regionInfo.getTable(),
+        regionInfo.getEncodedName());
+    NavigableSet<Path> files = getSplitEditFilesSorted(FSUtils.getWALFileSystem(conf), regionDir);
+    return files != null && !files.isEmpty();
   }
 
 
