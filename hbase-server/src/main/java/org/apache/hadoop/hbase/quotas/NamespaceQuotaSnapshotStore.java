@@ -18,8 +18,8 @@ package org.apache.hadoop.hbase.quotas;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
@@ -100,6 +100,11 @@ public class NamespaceQuotaSnapshotStore implements QuotaSnapshotStore<String> {
         @Override
         public boolean apply(Entry<HRegionInfo,Long> input) {
           return namespace.equals(input.getKey().getTable().getNamespaceAsString());
+        }
+
+        @Override
+        public boolean test(Entry<HRegionInfo, Long> input) {
+          return apply(input);
         }
       });
     } finally {

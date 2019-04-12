@@ -18,14 +18,6 @@
  */
 package org.apache.hadoop.hbase.regionserver.compactions;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.PeekingIterator;
-import com.google.common.math.LongMath;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,6 +38,14 @@ import org.apache.hadoop.hbase.regionserver.StoreUtils;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.hbase.util.ReflectionUtils;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.PeekingIterator;
+import com.google.common.math.LongMath;
 
 /**
  * HBASE-15181 This is a simple implementation of date-based tiered compaction similar to
@@ -321,6 +321,11 @@ public class DateTieredCompactionPolicy extends SortedCompactionPolicy {
         }
         Long maxTimestamp = storeFile.getMaximumTimestamp();
         return maxTimestamp == null ? true : maxTimestamp >= cutoff;
+      }
+
+      @Override
+      public boolean test(StoreFile input) {
+        return apply(input);
       }
     });
   }

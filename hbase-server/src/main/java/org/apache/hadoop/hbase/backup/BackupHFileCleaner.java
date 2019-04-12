@@ -125,6 +125,11 @@ public class BackupHFileCleaner extends BaseHFileCleanerDelegate implements Abor
         boolean foundHFileRef = hfileRefs.contains(hfile);
         return !foundHFileRef;
       }
+
+      @Override
+      public boolean test(FileStatus input) {
+        return apply(input);
+      }
     });
     return deletables;
   }

@@ -101,6 +101,11 @@ public class TableQuotaSnapshotStore implements QuotaSnapshotStore<TableName> {
         public boolean apply(Entry<HRegionInfo,Long> input) {
           return table.equals(input.getKey().getTable());
         }
+
+        @Override
+        public boolean test(Entry<HRegionInfo, Long> input) {
+          return apply(input);
+        }
       });
     } finally {
       rlock.unlock();

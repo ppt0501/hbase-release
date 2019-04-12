@@ -3338,7 +3338,7 @@ public final class ProtobufUtil {
         new ArrayList<HBaseProtos.ServerName>(pojo.getServers().size());
     for(HostAndPort el: pojo.getServers()) {
       hostports.add(HBaseProtos.ServerName.newBuilder()
-          .setHostName(el.getHostText())
+          .setHostName(el.getHost())
           .setPort(el.getPort())
           .build());
     }

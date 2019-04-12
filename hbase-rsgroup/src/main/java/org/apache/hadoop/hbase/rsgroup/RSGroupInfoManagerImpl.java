@@ -20,13 +20,6 @@
 
 package org.apache.hadoop.hbase.rsgroup;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-import com.google.common.collect.Sets;
-import com.google.common.net.HostAndPort;
-import com.google.protobuf.ServiceException;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -85,6 +78,12 @@ import org.apache.hadoop.hbase.util.ModifyRegionUtils;
 import org.apache.hadoop.hbase.zookeeper.ZKUtil;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
 import org.apache.zookeeper.KeeperException;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.net.HostAndPort;
+import com.google.protobuf.ServiceException;
 
 /**
  * This is an implementation of {@link RSGroupInfoManager}. Which makes
@@ -509,7 +508,7 @@ public class RSGroupInfoManagerImpl implements RSGroupInfoManager, ServerListene
           Collections.sort(servers, new Comparator<HostAndPort>() {
             @Override
             public int compare(HostAndPort o1, HostAndPort o2) {
-              int diff = o1.getHostText().compareTo(o2.getHostText());
+              int diff = o1.getHost().compareTo(o2.getHost());
               if (diff != 0) {
                 return diff;
               }

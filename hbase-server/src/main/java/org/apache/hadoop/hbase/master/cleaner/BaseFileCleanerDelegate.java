@@ -36,7 +36,13 @@ implements FileCleanerDelegate {
       @Override
       public boolean apply(FileStatus file) {
         return isFileDeletable(file);
-      }});
+      }
+
+      @Override
+      public boolean test(FileStatus input) {
+        return apply(input);
+      }
+    });
   }
 
   /**

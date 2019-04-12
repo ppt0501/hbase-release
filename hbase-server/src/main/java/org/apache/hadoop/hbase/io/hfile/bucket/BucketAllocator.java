@@ -20,7 +20,6 @@
 
 package org.apache.hadoop.hbase.io.hfile.bucket;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -29,7 +28,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.collect.MinMaxPriorityQueue;
 import org.apache.commons.collections.map.LinkedMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -39,8 +37,9 @@ import org.apache.hadoop.hbase.io.hfile.CacheConfig;
 import org.apache.hadoop.hbase.io.hfile.bucket.BucketCache.BucketEntry;
 import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.primitives.Ints;
 
 /**
@@ -268,7 +267,7 @@ public final class BucketAllocator {
 
     @Override
     public String toString() {
-      return Objects.toStringHelper(this.getClass())
+      return MoreObjects.toStringHelper(this.getClass())
         .add("sizeIndex", sizeIndex)
         .add("bucketSize", bucketSizes[sizeIndex])
         .toString();
