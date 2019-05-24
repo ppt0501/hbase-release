@@ -481,7 +481,7 @@ public class RSProcedureDispatcher
    * Compatibility class to open and close regions using old endpoints (openRegion/closeRegion) in
    * {@link AdminService}.
    */
-  protected class CompatRemoteProcedureResolver implements Callable<Void>, RemoteProcedureResolver {
+  protected class CompatRemoteProcedureResolver implements Runnable, RemoteProcedureResolver {
     private final Set<RemoteProcedure> operations;
     private final ServerName serverName;
 
@@ -492,9 +492,8 @@ public class RSProcedureDispatcher
     }
 
     @Override
-    public Void call() {
+    public void run() {
       splitAndResolveOperation(serverName, operations, this);
-      return null;
     }
 
     @Override
