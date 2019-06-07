@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <!--
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -33,16 +33,16 @@
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
     <version>12</version>
-    <relativePath/>
+    <relativePath />
     <!-- no parent resolution -->
   </parent>
   <groupId>org.apache.hbase</groupId>
   <artifactId>hbase</artifactId>
   <packaging>pom</packaging>
-  <version>1.1.2</version>
+  <version>1.1.2.2.5.3.164-1</version>
   <name>Apache HBase</name>
   <description>
-    Apache HBase is the Hadoop database. Use it when you need
+    Apache HBase&#153; is the Hadoop database. Use it when you need
     random, realtime read/write access to your Big Data.
     This project's goal is the hosting of very large tables -- billions of rows X millions of columns -- atop clusters
     of commodity hardware.
@@ -665,7 +665,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore></ignore>
+                    <ignore />
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -1043,7 +1043,7 @@
           <attributes>
             <docVersion>${project.version}</docVersion>
             <sourcedir>${project.build.sourceDirectory}</sourcedir>
-            <pdfmarks/>
+            <pdfmarks />
           </attributes>
         </configuration>
         <executions>
@@ -1069,9 +1069,9 @@
             <configuration>
               <backend>pdf</backend>
               <attributes>
-                <pagenums/>
-                <toc/>
-                <idprefix/>
+                <pagenums />
+                <toc />
+                <idprefix />
                 <idseparator>-</idseparator>
               </attributes>
             </configuration>
@@ -1172,7 +1172,7 @@
     <maven.min.version>3.0.3</maven.min.version>
     <java.min.version>${compileSource}</java.min.version>
     <!-- Dependencies -->
-    <hadoop-two.version>2.7.1</hadoop-two.version>
+    <hadoop-two.version>2.7.3.2.5.3.164-1</hadoop-two.version>
     <!-- minikdc introduced in hadoop-2.3; override when building earlier versions -->
     <hadoop-two-minikdc.version>${hadoop-two.version}</hadoop-two-minikdc.version>
     <hadoop-three.version>3.0.0-SNAPSHOT</hadoop-three.version>
@@ -1215,7 +1215,7 @@
     <protobuf.version>2.5.0</protobuf.version>
     <thrift.path>thrift</thrift.path>
     <thrift.version>0.9.3</thrift.version>
-    <zookeeper.version>3.4.6</zookeeper.version>
+    <zookeeper.version>3.4.6.2.5.3.164-1</zookeeper.version>
     <slf4j.version>1.7.7</slf4j.version>
     <hadoop-snappy.version>0.0.1-SNAPSHOT</hadoop-snappy.version>
     <clover.version>4.0.3</clover.version>
@@ -1261,8 +1261,8 @@
     <surefire.secondPartGroups>org.apache.hadoop.hbase.testclassification.MediumTests</surefire.secondPartGroups>
     <surefire.testFailureIgnore>false</surefire.testFailureIgnore>
     <test.output.tofile>true</test.output.tofile>
-    <surefire.timeout>900</surefire.timeout>
-    <test.exclude.pattern></test.exclude.pattern>
+    <surefire.timeout>7200</surefire.timeout>
+    <test.exclude.pattern />
     <!-- default Xmx value is 2800m. Use -Dsurefire.Xmx=xxg to run tests with different JVM Xmx value -->
     <surefire.Xmx>2800m</surefire.Xmx>
     <surefire.cygwinXmx>2800m</surefire.cygwinXmx>
@@ -2342,7 +2342,7 @@
         <surefire.firstPartForkCount>1</surefire.firstPartForkCount>
         <surefire.skipFirstPart>false</surefire.skipFirstPart>
         <surefire.skipSecondPart>true</surefire.skipSecondPart>
-        <surefire.firstPartGroups/>
+        <surefire.firstPartGroups />
       </properties>
     </profile>
     <profile>
@@ -2356,7 +2356,7 @@
         <surefire.skipFirstPart>false</surefire.skipFirstPart>
         <surefire.skipSecondPart>true</surefire.skipSecondPart>
         <surefire.firstPartGroups>org.apache.hadoop.hbase.testclassification.SmallTests</surefire.firstPartGroups>
-        <surefire.secondPartGroups/>
+        <surefire.secondPartGroups />
       </properties>
     </profile>
     <profile>
@@ -2369,7 +2369,7 @@
         <surefire.skipFirstPart>false</surefire.skipFirstPart>
         <surefire.skipSecondPart>true</surefire.skipSecondPart>
         <surefire.firstPartGroups>org.apache.hadoop.hbase.testclassification.MediumTests</surefire.firstPartGroups>
-        <surefire.secondPartGroups/>
+        <surefire.secondPartGroups />
       </properties>
     </profile>
     <profile>
@@ -2382,7 +2382,7 @@
         <surefire.skipFirstPart>false</surefire.skipFirstPart>
         <surefire.skipSecondPart>true</surefire.skipSecondPart>
         <surefire.firstPartGroups>org.apache.hadoop.hbase.testclassification.LargeTests</surefire.firstPartGroups>
-        <surefire.secondPartGroups/>
+        <surefire.secondPartGroups />
       </properties>
     </profile>
     <profile>
@@ -2426,7 +2426,7 @@
         <surefire.provider>surefire-junit4</surefire.provider>
         <surefire.skipFirstPart>false</surefire.skipFirstPart>
         <surefire.skipSecondPart>true</surefire.skipSecondPart>
-        <surefire.firstPartGroups/>
+        <surefire.firstPartGroups />
       </properties>
     </profile>
     <!-- Profile for running clover. You need to have a clover license under ~/.clover.license for ${clover.version}
