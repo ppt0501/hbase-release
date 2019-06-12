@@ -19,9 +19,12 @@ package org.apache.hadoop.hbase.quotas;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Random;
@@ -31,22 +34,26 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.Waiter.Predicate;
+
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.ClientServiceCallable;
 import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.RegionInfo;
 import org.apache.hadoop.hbase.client.SecureBulkLoadClient;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.client.TableDescriptor;
 import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.hadoop.hbase.ipc.RpcControllerFactory;
+import org.apache.hadoop.hbase.master.HMaster;
 import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.regionserver.HStore;
 import org.apache.hadoop.hbase.regionserver.HStoreFile;
@@ -490,5 +497,31 @@ public class SpaceQuotaHelperForTests {
       }
       return true;
     }
+  }
+
+  Map<RegionInfo,Long> getReportedSizesForTable(TableName tn) {
+    HMaster master = testUtil.getMiniHBaseCluster().getMaster();
+    MasterQuotaManager quotaManager = master.getMasterQuotaManager();
+    Map<RegionInfo,Long> filteredRegionSizes = new HashMap<>();
+    for (Entry<RegionInfo,Long> entry : quotaManager.snapshotRegionSizes().entrySet()) {
+      if (entry.getKey().getTable().equals(tn)) {
+        filteredRegionSizes.put(entry.getKey(), entry.getValue());
+      }
+    }
+    return filteredRegionSizes;
+  }
+
+  List<Pair<byte[], String>> createFiles(TableName tn, int numFiles, int numRowsPerFile, Path baseDir) throws IOException {
+    FileSystem fs = testUtil.getTestFileSystem();
+    fs.mkdirs(baseDir);
+    final List<Pair<byte[], String>> famPaths = new ArrayList<Pair<byte[], String>>();
+    for (int i = 1; i <= numFiles; i++) {
+      Path hfile = new Path(baseDir, "file" + i);
+      TestHRegionServerBulkLoad.createHFile(
+              fs, hfile, Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"),
+              Bytes.toBytes("reject"), numRowsPerFile);
+      famPaths.add(new Pair<>(Bytes.toBytes(SpaceQuotaHelperForTests.F1), hfile.toString()));
+    }
+    return famPaths;
   }
 }
