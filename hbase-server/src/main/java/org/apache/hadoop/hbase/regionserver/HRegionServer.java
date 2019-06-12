@@ -1875,7 +1875,13 @@ public class HRegionServer extends HasThread implements
     if (!isStopped() && !isAborted()) {
       initializeThreads();
     }
-    this.secureBulkLoadManager = new SecureBulkLoadManager(this.conf, clusterConnection);
+
+    // Setup the Quota Manager
+    rsQuotaManager = new RegionServerRpcQuotaManager(this);
+    rsSpaceQuotaManager = new RegionServerSpaceQuotaManager(this);
+
+    this.secureBulkLoadManager = new SecureBulkLoadManager(this.conf, clusterConnection,
+            getRegionServerSpaceQuotaManager());
     this.secureBulkLoadManager.start();
 
     // Health checker thread.
@@ -1987,10 +1993,6 @@ public class HRegionServer extends HasThread implements
       // Create the scheduled chore that cleans up nonces.
       nonceManagerChore = this.nonceManager.createCleanupScheduledChore(this);
     }
-
-    // Setup the Quota Manager
-    rsQuotaManager = new RegionServerRpcQuotaManager(this);
-    rsSpaceQuotaManager = new RegionServerSpaceQuotaManager(this);
 
     if (QuotaUtil.isQuotaEnabled(conf)) {
       this.fsUtilizationChore = new FileSystemUtilizationChore(this);

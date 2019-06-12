@@ -40,6 +40,10 @@ import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.ipc.RpcServer;
+import org.apache.hadoop.hbase.quotas.ActivePolicyEnforcement;
+import org.apache.hadoop.hbase.quotas.QuotaUtil;
+import org.apache.hadoop.hbase.quotas.RegionServerSpaceQuotaManager;
+import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.regionserver.HRegion.BulkLoadListener;
 import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.security.UserProvider;
@@ -112,10 +116,12 @@ public class SecureBulkLoadManager {
   private UserProvider userProvider;
   private ConcurrentHashMap<UserGroupInformation, Integer> ugiReferenceCounter;
   private Connection conn;
+  private RegionServerSpaceQuotaManager spaceQuotaManager;
 
-  SecureBulkLoadManager(Configuration conf, Connection conn) {
+  SecureBulkLoadManager(Configuration conf, Connection conn, RegionServerSpaceQuotaManager spaceQuotaManager) {
     this.conf = conf;
     this.conn = conn;
+    this.spaceQuotaManager = spaceQuotaManager;
   }
 
   public void start() throws IOException {
@@ -243,6 +249,22 @@ public class SecureBulkLoadManager {
     if (region.getCoprocessorHost() != null) {
       region.getCoprocessorHost().preBulkLoadHFile(familyPaths);
     }
+
+    // Ensure that the files would not exceed the space quota.
+    if (QuotaUtil.isQuotaEnabled(conf)) {
+      ActivePolicyEnforcement activeSpaceQuotas = spaceQuotaManager.getActiveEnforcements();
+      SpaceViolationPolicyEnforcement enforcement = activeSpaceQuotas.getPolicyEnforcement(region);
+      if (null != enforcement && enforcement.shouldCheckBulkLoads()) {
+        // Bulk loads must still be atomic. We must enact all or none.
+        List<String> filePaths = new ArrayList<>(request.getFamilyPathCount());
+        for (Pair<byte[], String> familyPath : familyPaths) {
+          filePaths.add(familyPath.getSecond());
+        }
+        // Check if the batch of files exceeds the current quota
+        enforcement.computeBulkLoadSize(fs, filePaths);
+      }
+    }
+
     Map<byte[], List<Path>> map = null;
 
     try {
