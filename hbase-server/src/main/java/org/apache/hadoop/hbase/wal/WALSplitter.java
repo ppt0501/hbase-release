@@ -549,12 +549,25 @@ public class WALSplitter {
     if (regionInfo.getReplicaId() != RegionInfo.DEFAULT_REPLICA_ID) {
       return false;
     }
-    //Only default replica region can reach here, so we can use regioninfo
-    //directly without converting it to default replica's regioninfo.
-    Path regionDir = FSUtils.getWALRegionDir(conf, regionInfo.getTable(),
-        regionInfo.getEncodedName());
-    NavigableSet<Path> files = getSplitEditFilesSorted(FSUtils.getWALFileSystem(conf), regionDir);
-    return files != null && !files.isEmpty();
+    // Only default replica region can reach here, so we can use regioninfo
+    // directly without converting it to default replica's regioninfo.
+    Path regionWALDir =
+        FSUtils.getWALRegionDir(conf, regionInfo.getTable(), regionInfo.getEncodedName());
+    Path regionDir = FSUtils.getRegionDirFromRootDir(FSUtils.getRootDir(conf), regionInfo);
+    Path wrongRegionWALDir =
+        FSUtils.getWrongWALRegionDir(conf, regionInfo.getTable(), regionInfo.getEncodedName());
+    FileSystem walFs = FSUtils.getWALFileSystem(conf);
+    FileSystem rootFs = FSUtils.getRootDirFileSystem(conf);
+    NavigableSet<Path> files = getSplitEditFilesSorted(walFs, regionWALDir);
+    if (!files.isEmpty()) {
+      return true;
+    }
+    files = getSplitEditFilesSorted(rootFs, regionDir);
+    if (!files.isEmpty()) {
+      return true;
+    }
+    files = getSplitEditFilesSorted(walFs, wrongRegionWALDir);
+    return !files.isEmpty();
   }
 
 
