@@ -157,7 +157,7 @@ public final class BackupUtils {
       LOG.debug("Starting to write region info for table " + table);
       for (RegionInfo regionInfo : regions) {
         Path regionDir =
-            HRegion.getRegionDir(new Path(backupInfo.getTableBackupDir(table)), regionInfo);
+            FSUtils.getRegionDirFromTableDir(new Path(backupInfo.getTableBackupDir(table)), regionInfo);
         regionDir = new Path(backupInfo.getTableBackupDir(table), regionDir.getName());
         writeRegioninfoOnFilesystem(conf, targetFs, regionDir, regionInfo);
       }
