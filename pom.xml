@@ -3738,7 +3738,7 @@
     <repository>
       <id>hwxsnapshots</id>
       <name>HWX Snapshots</name>
-      <url>http://nexus-private.hortonworks.com/nexus/content/groups/public/</url>
+      <url>https://nexus-private.hortonworks.com/nexus/content/groups/public/</url>
       <releases>
         <enabled>true</enabled>
       </releases>
