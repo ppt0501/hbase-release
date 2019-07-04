@@ -127,7 +127,7 @@ public class VisibilityReplicationEndpoint implements ReplicationEndpoint {
 
   @Override
   public Service startAsync() {
-    return null;
+    return delegator.startAsync();
   }
 
   @Override
