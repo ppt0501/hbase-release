@@ -44,7 +44,7 @@ public class MobConstants {
   public static final String MOB_REGION_NAME = ".mob";
   public static final byte[] MOB_REGION_NAME_BYTES = Bytes.toBytes(MOB_REGION_NAME);
 
-  public static final String MOB_CLEANER_PERIOD = "hbase.master.mob.ttl.cleaner.period";
+  public static final String MOB_CLEANER_PERIOD = "hbase.master.mob.cleaner.period";
   public static final int DEFAULT_MOB_CLEANER_PERIOD = 24 * 60 * 60; // one day
 
   public static final String MOB_SWEEP_TOOL_COMPACTION_START_DATE =
@@ -115,6 +115,50 @@ public class MobConstants {
   public static final String MOB_COMPACTION_THREADS_MAX =
     "hbase.mob.compaction.threads.max";
   public static final int DEFAULT_MOB_COMPACTION_THREADS_MAX = 1;
+  
+  /**
+   * Is MOB compaction automatic (true - then MOB compaction runs with every major compaction,
+   * false - MOB compaction is user - originated only)
+   */
+  public static final String MOB_COMPACTION_AUTO_ENABLED_KEY = "hbase.mob.compactions.auto";
+  public static final boolean DEFAULT_MOB_COMPACTION_AUTO_ENABLED = true;
+  
+  /**
+   * How aggressively will MOB auto compaction work (0 - never, 1.0 - always)
+   * This is the probability of a running MOB compaction during system - originated 
+   * regular major compaction (not user - originated), ranges from 0. (never) to 1. (always)
+   * 
+   */
+  
+  public static final String MOB_COMPACTION_AUTO_PROB_KEY = "hbase.mob.compactions.prob";
+  public static final double DEFAULT_MOB_COMPACTION_AUTO_PROB = 1.0;
+  
+  /**
+   * Maximum size of a MOB compaction selection
+   */
+  public static final String MOB_COMPACTION_MAX_SELECTION_SIZE_KEY = 
+      "hbase.mob.compactions.max.selection.size"; 
+  /**
+   * Default maximum selection size = 500MB
+   */
+  public static final long DEFAULT_MOB_COMPACTION_MAX_SELECTION_SIZE = 500 * 1024 * 1024; 
+  
+  
+  /**
+   * Minimum number of MOB files eligible for compaction
+   */
+  public static final String MOB_COMPACTION_MIN_FILES_KEY = "hbase.mob.compactions.min.files";
+  
+  public static final int DEFAULT_MOB_COMPACTION_MIN_FILES = 3;
+  
+  public static final String MOB_DISCARD_MISS_KEY = "hbase.mob.discard.miss";
+  
+  public static final boolean DEFAULT_MOB_DISCARD_MISS = false;
+  
+  public static final String MOB_MINIMUM_FILE_AGE_TO_ARCHIVE_KEY = "mob.minimum.file.age.to.archive";
+  
+  public static final long DEFAULT_MOB_MINIMUM_FILE_AGE_TO_ARCHIVE = 3600000; // 1 hour
+  
   private MobConstants() {
 
   }

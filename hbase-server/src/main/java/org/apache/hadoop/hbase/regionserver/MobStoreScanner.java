@@ -18,13 +18,19 @@
  */
 package org.apache.hadoop.hbase.regionserver;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.NavigableSet;
 
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.mob.MobConstants;
 import org.apache.hadoop.hbase.mob.MobUtils;
 
 /**
@@ -34,6 +40,7 @@ import org.apache.hadoop.hbase.mob.MobUtils;
  */
 @InterfaceAudience.Private
 public class MobStoreScanner extends StoreScanner {
+  protected static final Log LOG = LogFactory.getLog(MobStoreScanner.class);
 
   private boolean cacheMobBlocks = false;
   private boolean rawMobScan = false;
@@ -70,8 +77,9 @@ public class MobStoreScanner extends StoreScanner {
       for (int i = 0; i < outResult.size(); i++) {
         Cell cell = outResult.get(i);
         if (MobUtils.isMobReferenceCell(cell)) {
-          Cell mobCell = mobStore
-            .resolve(cell, cacheMobBlocks, readPt, readEmptyValueOnMobCellMiss);
+          Cell mobCell = null;
+            mobCell = mobStore
+                .resolve(cell, cacheMobBlocks, readPt, readEmptyValueOnMobCellMiss);            
           mobKVCount++;
           mobKVSize += mobCell.getValueLength();
           outResult.set(i, mobCell);
@@ -82,4 +90,5 @@ public class MobStoreScanner extends StoreScanner {
     }
     return result;
   }
+  
 }

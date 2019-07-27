@@ -52,6 +52,7 @@ import org.apache.hadoop.hbase.io.hfile.HFileContext;
 import org.apache.hadoop.hbase.io.hfile.HFileContextBuilder;
 import org.apache.hadoop.hbase.master.TableLockManager;
 import org.apache.hadoop.hbase.master.TableLockManager.TableLock;
+import org.apache.hadoop.hbase.mob.DefaultMobStoreCompactor;
 import org.apache.hadoop.hbase.mob.MobCacheConfig;
 import org.apache.hadoop.hbase.mob.MobConstants;
 import org.apache.hadoop.hbase.mob.MobFile;
@@ -59,6 +60,7 @@ import org.apache.hadoop.hbase.mob.MobFileName;
 import org.apache.hadoop.hbase.mob.MobStoreEngine;
 import org.apache.hadoop.hbase.mob.MobUtils;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionContext;
+import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionThroughputController;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
@@ -209,8 +211,10 @@ public class HMobStore extends HStore {
     }
     Path path = getTempDir();
     String suffix = UUID
-        .randomUUID().toString().replaceAll("-", "") + "_del";
-    MobFileName mobFileName = MobFileName.create(startKey, MobUtils.formatDate(date), suffix);
+        .randomUUID().toString().replaceAll("-", "");
+    String regionName = region.getRegionInfo().getEncodedName()+"_del";
+    MobFileName mobFileName = MobFileName.create(startKey, MobUtils.formatDate(date),
+      suffix, regionName);
     return createWriterInTmp(mobFileName, path, maxKeyCount, compression);
   }
 
@@ -227,7 +231,7 @@ public class HMobStore extends HStore {
   public StoreFile.Writer createWriterInTmp(String date, Path basePath, long maxKeyCount,
       Compression.Algorithm compression, byte[] startKey) throws IOException {
     MobFileName mobFileName = MobFileName.create(startKey, date, UUID.randomUUID()
-        .toString().replaceAll("-", ""));
+        .toString().replaceAll("-", ""), region.getRegionInfo().getEncodedName());
     return createWriterInTmp(mobFileName, basePath, maxKeyCount, compression);
   }
 
@@ -272,7 +276,7 @@ public class HMobStore extends HStore {
     }
     Path dstPath = new Path(targetPath, sourceFile.getName());
     validateMobFile(sourceFile);
-    String msg = "Renaming flushed file from " + sourceFile + " to " + dstPath;
+    String msg = "DDDD FLUSH Renaming flushed file from " + sourceFile + " to " + dstPath;
     LOG.info(msg);
     Path parent = dstPath.getParent();
     if (!region.getFilesystem().exists(parent)) {
@@ -314,6 +318,19 @@ public class HMobStore extends HStore {
    */
   public Cell resolve(Cell reference, boolean cacheBlocks) throws IOException {
     return resolve(reference, cacheBlocks, -1, true);
+  }
+  
+  /**
+   * Reads the cell from the mob file with readEmptyValueOnMobCellMiss
+   * @param reference
+   * @param cacheBlocks
+   * @param readEmptyValueOnMobCellMiss
+   * @return The cell found in the mob file.
+   * @throws IOException
+   */
+  public Cell resolve(Cell reference, boolean cacheBlocks, boolean readEmptyValueOnMobCellMiss) 
+      throws IOException {
+    return resolve(reference, cacheBlocks, -1, readEmptyValueOnMobCellMiss);
   }
 
   /**
@@ -514,4 +531,6 @@ public class HMobStore extends HStore {
   public long getMobScanCellsSize() {
     return mobScanCellsSize;
   }
+
+ 
 }

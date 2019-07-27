@@ -31,38 +31,44 @@ import org.apache.hadoop.hbase.ScheduledChore;
 import org.apache.hadoop.hbase.TableDescriptors;
 import org.apache.hadoop.hbase.exceptions.LockTimeoutException;
 import org.apache.hadoop.hbase.master.TableLockManager.TableLock;
-import org.apache.hadoop.hbase.mob.ExpiredMobFileCleaner;
+import org.apache.hadoop.hbase.mob.MobFileCleanerTool;
 import org.apache.hadoop.hbase.mob.MobConstants;
 import org.apache.hadoop.hbase.mob.MobUtils;
 
 import com.google.protobuf.ServiceException;
 
 /**
- * The Class ExpiredMobFileCleanerChore for running cleaner regularly to remove the expired
- * mob files.
+ * The Class MobFileCleanerChore for running cleaner regularly to remove the expired
+ * mob files as well as obsolete mob files.
  */
 @InterfaceAudience.Private
-public class ExpiredMobFileCleanerChore extends ScheduledChore {
+public class MobFileCleanerChore extends ScheduledChore {
 
-  private static final Log LOG = LogFactory.getLog(ExpiredMobFileCleanerChore.class);
+  private static final Log LOG = LogFactory.getLog(MobFileCleanerChore.class);
   private final HMaster master;
   private TableLockManager tableLockManager;
-  private ExpiredMobFileCleaner cleaner;
+  private MobFileCleanerTool cleaner;
+  private volatile boolean running = false;
 
-  public ExpiredMobFileCleanerChore(HMaster master) {
-    super(master.getServerName() + "-ExpiredMobFileCleanerChore", master, master.getConfiguration()
+  public MobFileCleanerChore(HMaster master) {
+    super(master.getServerName() + "-MobFileCleanerChore", master, master.getConfiguration()
       .getInt(MobConstants.MOB_CLEANER_PERIOD, MobConstants.DEFAULT_MOB_CLEANER_PERIOD), master
       .getConfiguration().getInt(MobConstants.MOB_CLEANER_PERIOD,
         MobConstants.DEFAULT_MOB_CLEANER_PERIOD), TimeUnit.SECONDS);
     this.master = master;
     this.tableLockManager = master.getTableLockManager();
-    cleaner = new ExpiredMobFileCleaner();
+    cleaner = new MobFileCleanerTool();
     cleaner.setConf(master.getConfiguration());
   }
 
   @Override
   protected void chore() {
     try {
+      if (running) {
+        LOG.warn(getName() +" is running already, skipping this attempt.");
+        return;
+      }
+      running = true;
       TableDescriptors htds = master.getTableDescriptors();
       Map<String, HTableDescriptor> map = htds.getAll();
       for (HTableDescriptor htd : map.values()) {
@@ -104,9 +110,15 @@ public class ExpiredMobFileCleanerChore extends ScheduledChore {
             }
           }
         }
+        // Now clean obsolete files for a table
+        LOG.info("Cleaning obsolete MOB files ...");
+        MobUtils.cleanupObsoleteMobFiles(master.getConfiguration(), htd.getTableName());
+        LOG.info("Cleaning obsolete MOB files finished");
       }
     } catch (Exception e) {
       LOG.error("Fail to clean the expired mob files", e);
+    } finally {
+      running = false;
     }
   }
 

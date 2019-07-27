@@ -19,16 +19,23 @@
 package org.apache.hadoop.hbase.regionserver;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.DroppedSnapshotException;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.RemoteExceptionHandler;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.master.TableLockManager.TableLock;
+import org.apache.hadoop.hbase.mob.MobUtils;
 import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
+import org.apache.hadoop.hbase.util.PairOfSameType;
 import org.apache.hadoop.util.StringUtils;
 
 import com.google.common.base.Preconditions;
@@ -79,7 +86,19 @@ class SplitRequest implements Runnable {
       // the prepare call -- we are not ready to split just now. Just return.
       if (!st.prepare()) return;
       try {
-        st.execute(this.server, this.server, user);
+        PairOfSameType<Region> daughters = st.execute(this.server, this.server, user);
+//        Configuration conf = server.getConfiguration();
+//        HTableDescriptor htd = parent.getTableDesc();
+//        if (MobUtils.hasMobColumns(htd)) {
+//          TableName tableName = htd.getTableName();
+//          String parentName = parent.getRegionInfo().getEncodedName();
+//          List<HColumnDescriptor> mobFams = MobUtils.getMobColumnFamilies(htd);
+//          for (HColumnDescriptor hcd: mobFams) {
+//            MobUtils.createRegionSplitMarker(conf, tableName, hcd.getNameAsString(),
+//              parentName, daughters.getFirst().getRegionInfo().getEncodedName(),
+//              daughters.getSecond().getRegionInfo().getEncodedName());
+//          }
+//        }
         success = true;
       } catch (Exception e) {
         if (this.server.isStopping() || this.server.isStopped()) {

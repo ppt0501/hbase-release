@@ -23,13 +23,15 @@ import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.regionserver.DefaultStoreEngine;
 import org.apache.hadoop.hbase.regionserver.Store;
+import org.apache.hadoop.hbase.util.ReflectionUtils;
 
 /**
  * MobStoreEngine creates the mob specific compactor, and store flusher.
  */
 @InterfaceAudience.Private
 public class MobStoreEngine extends DefaultStoreEngine {
-
+  public final static String DEFAULT_MOB_COMPACTOR_CLASS_KEY = "hbase.mob.default.compactor";
+  
   @Override
   protected void createStoreFlusher(Configuration conf, Store store) throws IOException {
     // When using MOB, we use DefaultMobStoreFlusher always
@@ -43,6 +45,12 @@ public class MobStoreEngine extends DefaultStoreEngine {
    */
   @Override
   protected void createCompactor(Configuration conf, Store store) throws IOException {
-    compactor = new DefaultMobStoreCompactor(conf, store);
+    String className = conf.get(DEFAULT_MOB_COMPACTOR_CLASS_KEY, DefaultMobStoreCompactor.class.getName());
+    try {
+      compactor = ReflectionUtils.instantiateWithCustomCtor(className,
+          new Class[] { Configuration.class, Store.class }, new Object[] { conf, store });
+    } catch (Exception e) {
+      throw new IOException("Unable to load configured compactor '" + className + "'", e);
+    }    
   }
 }

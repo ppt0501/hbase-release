@@ -2186,8 +2186,9 @@ public class TestHBaseFsck {
     MobFileName mobFileName = MobFileName.create(oldFileName);
     String startKey = mobFileName.getStartKey();
     String date = mobFileName.getDate();
-    return MobFileName.create(startKey, date, UUID.randomUUID().toString().replaceAll("-", ""))
-      .getFileName();
+    String region = mobFileName.getRegionName();
+    return MobFileName.create(startKey, date, UUID.randomUUID().toString().replaceAll("-", ""),
+      region).getFileName();
   }
 
   /**

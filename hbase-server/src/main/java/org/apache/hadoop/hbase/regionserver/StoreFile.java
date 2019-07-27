@@ -33,12 +33,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.directory.api.util.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -120,6 +122,10 @@ public class StoreFile {
 
   /** Key for the number of mob cells in metadata*/
   public static final byte[] MOB_CELLS_COUNT = Bytes.toBytes("MOB_CELLS_COUNT");
+
+  
+  /** MOB file references */
+  public static final byte[] MOB_FILE_REFS = Bytes.toBytes("MOB_FILE_REFS");
 
   private final StoreFileInfo fileInfo;
   private final FileSystem fs;
@@ -883,6 +889,23 @@ public class StoreFile {
       appendTrackedTimestampsToMetadata();
     }
 
+    public void appendMobMetadata(Set<String> mobRefSet) throws IOException {
+      if (mobRefSet.isEmpty()) {
+        return;
+      }
+      StringBuilder sb = new StringBuilder(2 * mobRefSet.size() - 1);
+      String[] arr  = new String[mobRefSet.size()];
+      arr = mobRefSet.toArray(arr);  
+      for (int i=0; i < arr.length; i++) {
+        sb.append(arr[i]);
+        if (i < arr.length -1) {
+          sb.append(",");
+        }
+      }
+      byte[] bytes = sb.toString().getBytes();
+      writer.appendFileInfo(MOB_FILE_REFS, bytes);
+    }
+    
     /**
      * Add TimestampRange and earliest put timestamp to Metadata
      */
