@@ -66,8 +66,8 @@ public class TestMobFileName extends TestCase {
     MobFileName mobFileName = MobFileName.create(startKey, dateStr, uuid, regionName);
     assertEquals(MD5Hash.getMD5AsHex(startKey, 0, startKey.length), mobFileName.getStartKey());
     assertEquals(dateStr, mobFileName.getDate());
-    assertEquals(mobFileName.getFileName(), MD5Hash.getMD5AsHex(startKey, 0, startKey.length)
-        + dateStr + uuid);
+    assertEquals(mobFileName.getFileName(),
+        MD5Hash.getMD5AsHex(startKey, 0, startKey.length) + dateStr + uuid + "_" + regionName);
   }
 
   @Test

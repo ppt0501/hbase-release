@@ -1610,6 +1610,32 @@ public abstract class FSUtils {
   }
 
   /**
+   * Filter for HFiles that excludes reference files.
+   */
+  public static class MobFileFilter extends AbstractFileStatusFilter {
+    private final FileSystem fs;
+
+    public MobFileFilter(FileSystem fs) {
+      this.fs = fs;
+    }
+
+    @Override
+    protected boolean accept(Path p, @CheckForNull Boolean isDir) {
+      if (!StoreFileInfo.isMobFile(p)) {
+        return false;
+      }
+
+      try {
+        return isFile(fs, isDir, p);
+      } catch (IOException ioe) {
+        // Maybe the file was moved or the fs was disconnected.
+        LOG.warn("Skipping file " + p +" due to IOException", ioe);
+        return false;
+      }
+    }
+  }
+
+  /**
    * Filter for HFileLinks (StoreFiles and HFiles not included).
    * the filter itself does not consider if a link is file or not.
    */

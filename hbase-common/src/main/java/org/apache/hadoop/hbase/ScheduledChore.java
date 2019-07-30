@@ -130,7 +130,7 @@ public abstract class ScheduledChore implements Runnable {
    * @param period Period with which this Chore repeats execution when scheduled.
    */
   public ScheduledChore(final String name, Stoppable stopper, final int period) {
-    this(name, stopper, period, period);
+    this(name, stopper, period, DEFAULT_INITIAL_DELAY);
   }
 
   /**

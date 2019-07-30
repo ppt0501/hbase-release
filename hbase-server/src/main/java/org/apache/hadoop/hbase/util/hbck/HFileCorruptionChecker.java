@@ -194,7 +194,7 @@ public class HFileCorruptionChecker {
   protected void checkMobColFamDir(Path cfDir) throws IOException {
     FileStatus[] hfs = null;
     try {
-      hfs = fs.listStatus(cfDir, new HFileFilter(fs)); // use same filter as scanner.
+      hfs = fs.listStatus(cfDir, new FSUtils.MobFileFilter(fs)); // use same filter as scanner.
     } catch (FileNotFoundException fnfe) {
       // Hadoop 0.23+ listStatus semantics throws an exception if the path does not exist.
       LOG.warn("Mob colfam Directory " + cfDir +
