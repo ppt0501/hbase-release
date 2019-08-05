@@ -1,12 +1,56 @@
 The following issues are included over Apache HBase 2.0.2
-
+HBASE-22690 Deprecate / Remove OfflineMetaRepair in hbase-2+
+HBASE-19893 restore_snapshot is broken in master branch when region splits
+HBASE-21136 NPE in MetricsTableSourceImpl.updateFlushTime
+HBASE-21284 Default limits for PressureAwareCompactionThroughputController are too low
+HBASE-17525 Add space quota support to the deprecated SecureBulkLoadEndpoint
+HBASE-15728 Add Per-Table metrics back
+HBASE-21890 Use execute instead of submit to submit a task in RemoteProcedureDispatcher
+HBASE-20662 Increasing space quota on a violated table does not remove SpaceViolationPolicy.DISABLE enforcement
+HBASE-21634 Print error message when user uses unacceptable values for LIMIT while setting quotas.
+HBASE-21225 Having RPC & Space quota on a table/Namespace doesn't allow space quota to be removed using 'NONE'
+HBASE-21631 list_quotas should print human readable values for LIMIT
+HBASE-21988 Remove hadoop2.6.1-hadoop-2.6.4 as supported on branch-2.0
+HBASE-21915 Make FileLinkInputStream implement CanUnbuffer
+HBASE-22200 WALSplitter.hasRecoveredEdits should use same FS instance from WAL region dir
+HBASE-21688 Address WAL filesystem issues
+HBASE-22144 Correct MultiRowRangeFilter to work with reverse scans
+HBASE-21734 Some optimization in FilterListWithOR
+HBASE-21620 Problem in scan query when using more than one column prefix filter in some cases
+HBASE-21129 Clean up duplicate codes in #equals and #hashCode methods of Filter
+HBASE-19008 Add missing equals or hashCode method(s) to stock Filter implementations
+HBASE-22185 RAMQueueEntry#writeToCache should freeBlock if any exception encountered instead of the IOException catch block
+HBASE-21932 Use Runtime.getRuntime().halt to terminate regionserver when abort timeout
+HBASE-21775 The BufferedMutator doesn't ever refresh region location cache
+HBASE-21644 Modify table procedure runs infinitely for a table having region replication > 1
+HBASE-21621 Reversed scan does not return expected number of rows
+HBASE-21618 Scan with the same startRow(inclusive=true) and stopRow(inclusive=false) returns one result
+HBASE-21402 Backport parent "HBASE-21325 Force to terminate regionserver when abort hang in somewhere"
+HBASE-22123 REST gateway reports Insufficient permissions exceptions as 404 Not Found
+HBASE-21732 Should call toUpperCase before using Enum.valueOf in some methods for ColumnFamilyDescriptor
+HBASE-21683 Reset readsEnabled flag after successfully flushing the primary region
+HBASE-21645 Perform sanity check and disallow table creation/modification with region replication < 1
+HBASE-21413 Empty meta log doesn't get split when restart whole cluster
+HBASE-20220 [RSGroup] Check if table exists in the cluster before moving it to the specified regionserver group
+HBASE-18484 VerifyRep by snapshot does not work when Yarn/SourceHBase/PeerHBase located in three different HDFS clusters
+HBASE-21738 Remove all the CSLM#size operation in our memstore because it's an quite time consuming.
+HBASE-22128 Move namespace region then master crashed make deadlock
+HBASE-21551 Memory leak when use scan with STREAM at server side
+HBASE-20604 ProtobufLogReader#readNext can incorrectly loop to the same position in the stream until the the WAL is rolled
+HBASE-21960 Ensure RESTServletContainer used by RESTServer
+HBASE-22077 Expose sleep time as a command line argument of IntergationTestBackupRestore
+HBASE-20734 Colocate recovered edits directory with hbase.wal.dir
+HBASE-21568 Disable use of BlockCache for LoadIncrementalHFiles
+HBASE-21523 Avoid extra logging when the backup system table already exists
+HBASE-21524 Fix logging in ConnectionImplementation.isTableAvailable()
+HBASE-21466 WALProcedureStore uses wrong FileSystem if wal.dir is not under rootdir
+HBASE-21457 BackupUtils#getWALFilesOlderThan refers to wrong FileSystem
 HBASE-20723 Custom hbase.wal.dir results in data loss because we write recovered edits into a different place than where the recovering region server looks for them
 HBASE-20722 Make RegionServerTracker only depend on children changed event
 HBASE-20668 Avoid permission change if ExportSnapshot's copy fails
 HBASE-20657 Retrying RPC call for ModifyTableProcedure may get stuck
 HBASE-20635 Add missing shaded-pb conversion method for UserPermission
 HBASE-20627 Relocate RS Group pre/post hooks from RSGroupAdminServer to RSGroupAdminEndpoint
-HBASE-20579 Include original exception in wrapped exception
 HBASE-20579 Improve snapshot manifest copy in ExportSnapshot
 HBASE-20547: Restore from backup will fail if done from a different file system
 HBASE-20531 RS may throw NPE when close meta regions in shutdown procedure.
@@ -19,7 +63,6 @@ HBASE-18135 Implement mechanism for RegionServers to report file archival for sp
 HBASE-18133 Decrease quota reaction latency by HBase
 HBASE-17549 HBase-Spark Module: Corrected - Incorrect log at println and unwanted comment code
 HBASE-21440 Assign procedure on the crashed server is not properly interrupted
-HBASE-21344 Fix TestMetaShutdownHandler (addendum)
 HBASE-21384 Procedure with holdlock=false should not be restored lock when restarts
 HBASE-21344 hbase:meta location in ZooKeeper set to OPENING by the procedure which eventually failed but precludes Master from assigning it forever
 HBASE-21215 Figure how to invoke hbck2; make it easy to find
@@ -32,11 +75,8 @@ HBASE-21338 Warn if balancer is an ill-fit for cluster size
 HBASE-21073 Redo concept of maintenance mode
 HBASE-20973 ArrayIndexOutOfBoundsException when rolling back procedure
 HBASE-21321 Backport HBASE-21278 to branch-2.1 and branch-2.0 ("Do not rollback successful sub procedures when rolling back a procedure")
-HBASE-21354 Procedure may be deleted improperly during master restarts resulting in 'Corrupt'(addendum)
 HBASE-21356 bulkLoadHFile API should ensure that rs has the source hfile's write permissionls
 HBASE-21354 Procedure may be deleted improperly during master restarts resulting in 'Corrupt'
-HBASE-21336 Addendum remove unused code in HBTU
-HBASE-21355 (addendum) replace the expensive reload storefiles with reading the merge result of compacted storefiles and current storefiles
 HBASE-21336 Simplify the implementation of WALProcedureMap
 HBASE-21355 HStore's storeSize is calculated repeatedly which causing the confusing region split
 HBASE-21348 Fix failing TestRegionBypass, broke by HBASE-21291
@@ -44,21 +84,15 @@ HBASE-21345 [hbck2] Allow version check to proceed even though master is 'initia
 HBASE-21200 Memstore flush doesn't finish because of seekToPreviousRow() in memstore scanner.
 HBASE-21323 Should not skip force updating for a sub procedure even if it has been finished
 HBASE-21075 Confirm that we can (rolling) upgrade from 2.0.x and 2.1.x to 2.2.x after HBASE-20881
-Revert "HBASE-21323 Should not skip force updating for a sub procedure even if it has been finished"
-Revert "HBASE-21323 Should not skip force updating for a sub procedure even if"
 HBASE-21292 IdLock.getLockEntry() may hang if interrupted
 HBASE-21291 Add a test for bypassing stuck state-machine procedures
-HBASE-21323 Should not skip force updating for a sub procedure even if it has been finished; ADDENDUM
 HBASE-21288 HostingServer in UnassignProcedure is not accurate
-HBASE-21323 Should not skip force updating for a sub procedure even if it has been finished
 HBASE-21055 NullPointerException when balanceOverall() but server balance info is null
 HBASE-21198 Exclude dependency on net.minidev:json-smart
-HBASE-21310 & HBASE-21311 Addendum fix failed UTs, some UTs are not present on branch-2.1 and some are a bit different in the implementation
 HBASE-21327 Fix minor logging issue where we don't report servername if no associated SCP
 HBASE-21320 [canary] Cleanup of usage and add commentary
 HBASE-21311 Split TestRestoreSnapshotFromClient
 HBASE-21263 Mention compression algorithm along with other storefile details
-HBASE-21242 [amv2] Miscellaneous minor log and assign procedure create improvements; ADDENDUM Fix TestHRegionInfo AND TestRegionInfoDisplay
 HBASE-21315 The getActiveMinProcId and getActiveMaxProcId of BitSetNode are incorrect if there are no active procedure
 HBASE-21310 Split TestCloneSnapshotFromClient
 HBASE-21266 Not running balancer because processing dead regionservers, but empty dead rs list
@@ -75,14 +109,10 @@ HBASE-21254 Need to find a way to limit the number of proc wal files
 HBASE-21103 nightly job should make sure cached yetus will run.
 HBASE-21287 Allow configuring test master initialization wait time.
 HBASE-20764 build broken when latest commit is gpg signed
-Revert "HBASE-21271 [amv2] Don't throw UnsupportedOperationException when rollback called on Assign/Unassign; spiral of death"
-HBASE-21271 [amv2] Don't throw UnsupportedOperationException when rollback called on Assign/Unassign; spiral of death
-HBASE-21250 Addendum remove unused modification in hbase-server module
 HBASE-21250 Refactor WALProcedureStore and add more comments for better understanding the implementation
 HBASE-21223 [amv2] Remove abort_procedure from shell
 HBASE-20506 Add doc and test for unused RetryCounter, useful-looking utility
 HBASE-21185 - WALPrettyPrinter: Additional useful info to be printed by wal printer tool, for debugability purposes
-HBASE-21281 Upgrade bouncycastle to latest - addendum adds test dependency
 HBASE-21178 [BC break] : Get and Scan operation with a custom converter_class not working
 HBASE-21282 Upgrade to lateste jetty 9.2 and 9.3 versions
 HBASE-21281 Upgrade bouncycastle to latest
