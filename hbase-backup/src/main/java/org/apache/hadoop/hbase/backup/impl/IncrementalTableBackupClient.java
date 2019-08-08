@@ -423,6 +423,7 @@ public class IncrementalTableBackupClient extends TableBackupClient {
         throw new IOException("WAL Player failed");
       }
       /*DEBUG*/ LOG.warn("DDD Dumping Bulk Output directory");
+      FileSystem fs = FileSystem.get(bulkOutputPath.toUri(), conf);
       dumpDir(fs, bulkOutputPath);
       conf.unset(WALPlayer.INPUT_FILES_SEPARATOR_KEY);
       conf.unset(JOB_NAME_CONF_KEY);
