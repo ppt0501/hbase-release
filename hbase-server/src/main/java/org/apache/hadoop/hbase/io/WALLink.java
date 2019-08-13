@@ -24,6 +24,7 @@ import org.apache.yetus.audience.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.util.CommonFSUtils;
 import org.apache.hadoop.hbase.util.FSUtils;
 
 /**
@@ -45,7 +46,7 @@ public class WALLink extends FileLink {
    */
   public WALLink(final Configuration conf,
       final String serverName, final String logName) throws IOException {
-    this(FSUtils.getWALRootDir(conf), serverName, logName);
+    this(CommonFSUtils.getWALRootDir(conf), serverName, logName);
   }
 
   /**
