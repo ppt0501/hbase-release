@@ -149,14 +149,10 @@ import org.apache.hadoop.hbase.procedure2.store.wal.WALProcedureStore;
 import org.apache.hadoop.hbase.quotas.MasterQuotaManager;
 import org.apache.hadoop.hbase.quotas.MasterQuotasObserver;
 import org.apache.hadoop.hbase.quotas.QuotaObserverChore;
-import org.apache.hadoop.hbase.quotas.QuotaTableUtil;
 import org.apache.hadoop.hbase.quotas.QuotaUtil;
 import org.apache.hadoop.hbase.quotas.SnapshotQuotaObserverChore;
-import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot;
-import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshotNotifier;
 import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshotNotifierFactory;
-import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
 import org.apache.hadoop.hbase.regionserver.DefaultStoreEngine;
 import org.apache.hadoop.hbase.regionserver.HRegionServer;
 import org.apache.hadoop.hbase.regionserver.HStore;
@@ -211,6 +207,8 @@ import org.apache.hbase.thirdparty.com.google.common.collect.Maps;
 
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionInfoResponse.CompactionState;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolationPolicy;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.SnapshotProtos.SnapshotDescription;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.WALProtos;
 
@@ -2445,12 +2443,10 @@ public class HMaster extends HRegionServer implements MasterServices {
         MasterQuotaManager quotaManager = getMasterQuotaManager();
         if (quotaManager != null) {
           if (quotaManager.isQuotaInitialized()) {
-              SpaceQuotaSnapshot currSnapshotOfTable =
-                  QuotaTableUtil.getCurrentSnapshotFromQuotaTable(getConnection(), tableName);
-              if (currSnapshotOfTable != null) {
-                SpaceQuotaStatus quotaStatus = currSnapshotOfTable.getQuotaStatus();
-                if (quotaStatus.isInViolation()
-                    && SpaceViolationPolicy.DISABLE == quotaStatus.getPolicy()) {
+            Quotas quotaForTable = QuotaUtil.getTableQuota(getConnection(), tableName);
+            if (quotaForTable != null && quotaForTable.hasSpace()) {
+              SpaceViolationPolicy policy = quotaForTable.getSpace().getViolationPolicy();
+              if (SpaceViolationPolicy.DISABLE == policy) {
                 throw new AccessDeniedException("Enabling the table '" + tableName
                     + "' is disallowed due to a violated space quota.");
               }
