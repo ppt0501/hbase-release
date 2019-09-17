@@ -27,7 +27,6 @@ import org.apache.hadoop.hbase.spark.protobuf.generated.SparkFilterProtos;
 import org.apache.hadoop.hbase.util.ByteStringer;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.sql.datasources.hbase.Field;
-import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.mutable.MutableList;
