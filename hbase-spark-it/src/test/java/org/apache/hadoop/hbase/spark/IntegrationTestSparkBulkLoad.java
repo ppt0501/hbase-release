@@ -18,10 +18,7 @@
  */
 package org.apache.hadoop.hbase.spark;
 
-import com.google.common.collect.Sets;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 
@@ -55,6 +52,8 @@ import org.apache.hadoop.hbase.util.RegionSplitter;
 
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.ToolRunner;
+
+import org.apache.hbase.thirdparty.com.google.common.collect.Sets;
 import org.apache.hbase.thirdparty.org.apache.commons.cli.CommandLine;
 import org.apache.spark.SerializableWritable;
 import org.apache.spark.SparkConf;
@@ -68,6 +67,8 @@ import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -93,7 +94,7 @@ import java.util.Set;
  */
 public class IntegrationTestSparkBulkLoad extends IntegrationTestBase {
 
-  private static final Log LOG = LogFactory.getLog(IntegrationTestSparkBulkLoad.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(IntegrationTestSparkBulkLoad.class);
 
   // The number of partitions for random generated data
   private static String BULKLOAD_PARTITIONS_NUM = "hbase.spark.bulkload.partitionsnum";

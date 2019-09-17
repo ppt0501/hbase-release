@@ -24,8 +24,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.Cell;
@@ -60,9 +58,11 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-import com.google.common.io.Files;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
+
+import org.apache.hbase.thirdparty.com.google.common.io.Files;
 
 @Category({MiscTests.class, MediumTests.class})
 public class TestJavaHBaseContext implements Serializable {
@@ -72,7 +72,7 @@ public class TestJavaHBaseContext implements Serializable {
 		
   private transient JavaSparkContext jsc;
   HBaseTestingUtility htu;
-  protected static final Log LOG = LogFactory.getLog(TestJavaHBaseContext.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(TestJavaHBaseContext.class);
 
 
 
