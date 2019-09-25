@@ -24,12 +24,15 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -100,6 +103,9 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.partition.TotalOrderPartitioner;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -628,15 +634,19 @@ public class TestHFileOutputFormat2  {
     Path testDir = util.getDataTestDirOnTestFS("testLocalMRIncrementalLoad");
     // Generate the bulk load files
     runIncrementalPELoad(conf, tableInfo, testDir, putSortReducer);
+    if (writeMultipleTables) {
+      testDir = new Path(testDir, "default");
+    }
 
     for (Table tableSingle : allTables.values()) {
       // This doesn't write into the table, just makes files
       assertEquals("HFOF should not touch actual table", 0, util.countRows(tableSingle));
     }
     int numTableDirs = 0;
-    for (FileStatus tf : testDir.getFileSystem(conf).listStatus(testDir)) {
+    FileStatus[] fss =
+        testDir.getFileSystem(conf).listStatus(testDir);
+    for (FileStatus tf: fss) {
       Path tablePath = testDir;
-
       if (writeMultipleTables) {
         if (allTables.containsKey(tf.getPath().getName())) {
           ++numTableDirs;
@@ -649,7 +659,8 @@ public class TestHFileOutputFormat2  {
 
       // Make sure that a directory was created for every CF
       int dir = 0;
-      for (FileStatus f : tablePath.getFileSystem(conf).listStatus(tablePath)) {
+      fss = tablePath.getFileSystem(conf).listStatus(tablePath);
+      for (FileStatus f: fss) {
         for (byte[] family : FAMILIES) {
           if (Bytes.toString(family).equals(f.getPath().getName())) {
             ++dir;
@@ -787,8 +798,9 @@ public class TestHFileOutputFormat2  {
   }
 
   /**
-   * Test for {@link HFileOutputFormat2#createFamilyCompressionMap(Configuration)}.
-   * Tests that the family compression map is correctly serialized into
+   * Test for {@link HFileOutputFormat2#configureCompression(Configuration, HTableDescriptor)} and
+   * {@link HFileOutputFormat2#createFamilyCompressionMap(Configuration)}.
+   * Tests that the compression map is correctly serialized into
    * and deserialized from configuration
    *
    * @throws IOException
@@ -858,8 +870,9 @@ public class TestHFileOutputFormat2  {
 
 
   /**
-   * Test for {@link HFileOutputFormat2#createFamilyBloomTypeMap(Configuration)}.
-   * Tests that the family bloom type map is correctly serialized into
+   * Test for {@link HFileOutputFormat2#configureBloomType(HTableDescriptor, Configuration)} and
+   * {@link HFileOutputFormat2#createFamilyBloomTypeMap(Configuration)}.
+   * Tests that the compression map is correctly serialized into
    * and deserialized from configuration
    *
    * @throws IOException
@@ -928,8 +941,9 @@ public class TestHFileOutputFormat2  {
   }
 
   /**
-   * Test for {@link HFileOutputFormat2#createFamilyBlockSizeMap(Configuration)}.
-   * Tests that the family block size map is correctly serialized into
+   * Test for {@link HFileOutputFormat2#configureBlockSize(HTableDescriptor, Configuration)} and
+   * {@link HFileOutputFormat2#createFamilyBlockSizeMap(Configuration)}.
+   * Tests that the compression map is correctly serialized into
    * and deserialized from configuration
    *
    * @throws IOException
@@ -1004,8 +1018,9 @@ public class TestHFileOutputFormat2  {
   }
 
   /**
-   * Test for {@link HFileOutputFormat2#createFamilyDataBlockEncodingMap(Configuration)}.
-   * Tests that the family data block encoding map is correctly serialized into
+   * Test for {@link HFileOutputFormat2#configureDataBlockEncoding(HTableDescriptor, Configuration)}
+   * and {@link HFileOutputFormat2#createFamilyDataBlockEncodingMap(Configuration)}.
+   * Tests that the compression map is correctly serialized into
    * and deserialized from configuration
    *
    * @throws IOException
@@ -1485,6 +1500,55 @@ public class TestHFileOutputFormat2  {
     }
 
     return null;
+  }
+
+  @Ignore
+  @Test
+  public void TestConfigurePartitioner() throws IOException {
+    Configuration conf = util.getConfiguration();
+    // Create a user who is not the current user
+    String fooUserName = "foo1234";
+    String fooGroupName = "group1";
+    UserGroupInformation
+        ugi = UserGroupInformation.createUserForTesting(fooUserName, new String[]{fooGroupName});
+    // Get user's home directory
+    Path fooHomeDirectory = ugi.doAs(new PrivilegedAction<Path>() {
+      @Override public Path run() {
+        try (FileSystem fs = FileSystem.get(conf)) {
+          return fs.makeQualified(fs.getHomeDirectory());
+        } catch (IOException ioe) {
+          LOG.error("Failed to get foo's home directory", ioe);
+        }
+        return null;
+      }
+    });
+
+    Job job = Mockito.mock(Job.class);
+    Mockito.doReturn(conf).when(job).getConfiguration();
+    ImmutableBytesWritable writable = new ImmutableBytesWritable();
+    List<ImmutableBytesWritable> splitPoints = new LinkedList<ImmutableBytesWritable>();
+    splitPoints.add(writable);
+
+    ugi.doAs(new PrivilegedAction<Void>() {
+      @Override public Void run() {
+        try {
+          HFileOutputFormat2.configurePartitioner(job, splitPoints, false);
+        } catch (IOException ioe) {
+          LOG.error("Failed to configure partitioner", ioe);
+        }
+        return null;
+      }
+    });
+    FileSystem fs = FileSystem.get(conf);
+    // verify that the job uses TotalOrderPartitioner
+    verify(job).setPartitionerClass(TotalOrderPartitioner.class);
+    // verify that TotalOrderPartitioner.setPartitionFile() is called.
+    String partitionPathString = conf.get("mapreduce.totalorderpartitioner.path");
+    Assert.assertNotNull(partitionPathString);
+    // Make sure the partion file is in foo1234's home directory, and that
+    // the file exists.
+    Assert.assertTrue(partitionPathString.startsWith(fooHomeDirectory.toString()));
+    Assert.assertTrue(fs.exists(new Path(partitionPathString)));
   }
 }
 

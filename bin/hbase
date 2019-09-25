@@ -119,6 +119,8 @@ if [ $# = 0 ]; then
   echo "  cellcounter      Run CellCounter tool"
   echo "  pre-upgrade      Run Pre-Upgrade validator tool"
   echo "  CLASSNAME        Run the class named CLASSNAME"
+  echo "  backup           Run HBase backup tool"
+  echo "  restore          Run HBase restore tool"
   exit 1
 fi
 
@@ -505,6 +507,10 @@ elif [ "$COMMAND" = "wal" ] ; then
   CLASS='org.apache.hadoop.hbase.wal.WALPrettyPrinter'
 elif [ "$COMMAND" = "hfile" ] ; then
   CLASS='org.apache.hadoop.hbase.io.hfile.HFilePrettyPrinter'
+elif [ "$COMMAND" = "backup" ] ; then
+  CLASS='org.apache.hadoop.hbase.backup.BackupDriver'
+elif [ "$COMMAND" = "restore" ] ; then
+  CLASS='org.apache.hadoop.hbase.backup.RestoreDriver'
 elif [ "$COMMAND" = "zkcli" ] ; then
   CLASS="org.apache.hadoop.hbase.zookeeper.ZKMainServer"
   for f in $HBASE_HOME/lib/zkcli/*.jar; do

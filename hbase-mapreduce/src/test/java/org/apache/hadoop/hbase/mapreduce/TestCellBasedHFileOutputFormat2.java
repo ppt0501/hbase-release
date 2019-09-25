@@ -629,7 +629,9 @@ public class TestCellBasedHFileOutputFormat2  {
     Path testDir = util.getDataTestDirOnTestFS("testLocalMRIncrementalLoad");
     // Generate the bulk load files
     runIncrementalPELoad(conf, tableInfo, testDir, putSortReducer);
-
+    if (writeMultipleTables) {
+      testDir = new Path(testDir, "default");
+    }
     for (Table tableSingle : allTables.values()) {
       // This doesn't write into the table, just makes files
       assertEquals("HFOF should not touch actual table", 0, util.countRows(tableSingle));
