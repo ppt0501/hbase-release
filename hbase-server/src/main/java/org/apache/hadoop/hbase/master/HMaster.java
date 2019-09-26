@@ -3856,4 +3856,8 @@ public class HMaster extends HRegionServer implements MasterServices {
   public HbckChore getHbckChore() {
     return this.hbckChore;
   }
+
+  public SnapshotQuotaObserverChore getSnapshotQuotaObserverChore() {
+    return this.snapshotQuotaChore;
+  }
 }

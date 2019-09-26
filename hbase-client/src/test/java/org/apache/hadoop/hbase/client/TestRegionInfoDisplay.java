@@ -46,7 +46,7 @@ public class TestRegionInfoDisplay {
   @Rule public TestName name = new TestName();
 
   @Test
-  public void testRegionDetailsForDisplay() throws IOException {
+  public void testRegionDetailsForDisplayMetricsRegionServer() throws IOException {
     byte[] startKey = new byte[] {0x01, 0x01, 0x02, 0x03};
     byte[] endKey = new byte[] {0x01, 0x01, 0x02, 0x04};
     Configuration conf = new Configuration();
