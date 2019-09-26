@@ -358,7 +358,7 @@ public abstract class CommonFSUtils {
    */
   public static Path getRootDir(final Configuration c) throws IOException {
     Path p = new Path(c.get(HConstants.HBASE_DIR));
-    FileSystem fs = p.getFileSystem(c);
+    FileSystem fs = FileSystem.get(c);
     return p.makeQualified(fs.getUri(), fs.getWorkingDirectory());
   }
 
