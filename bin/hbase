@@ -516,11 +516,23 @@ elif [ "$COMMAND" = "backup" ] ; then
         break
       fi
     done
+    for f in "${HBASE_HOME}"/lib/phoenix-serv*.jar; do
+      if [ -f "${f}" ]; then
+        CLASSPATH="${CLASSPATH}:${f}"
+        break
+      fi
+    done
   fi
 elif [ "$COMMAND" = "restore" ] ; then
   CLASS='org.apache.hadoop.hbase.backup.RestoreDriver'
   if [ -n "${shaded_jar}" ] ; then
     for f in "${HBASE_HOME}"/lib/hbase-backup*.jar; do
+      if [ -f "${f}" ]; then
+        CLASSPATH="${CLASSPATH}:${f}"
+        break
+      fi
+    done
+    for f in "${HBASE_HOME}"/lib/phoenix-serv*.jar; do
       if [ -f "${f}" ]; then
         CLASSPATH="${CLASSPATH}:${f}"
         break
