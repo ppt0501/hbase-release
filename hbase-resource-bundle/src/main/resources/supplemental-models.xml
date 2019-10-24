@@ -3011,4 +3011,37 @@ Copyright (c) 2007-2017 The JRuby project
       </licenses>
     </project>
   </supplement>
+  <supplement>
+    <project>
+      <groupId>jakarta.activation</groupId>
+      <artifactId>jakarta.activation-api</artifactId>
+      <name>Jakarta Activation API</name>
+
+      <url>https://github.com/eclipse-ee4j/jaf/jakarta.activation-api/jakarta.activation-api</url>
+      <licenses>
+        <license>
+          <name>Eclipse Distribution License 1.0</name>
+          <url>http://www.eclipse.org/org/documents/edl-v10.php</url>
+          <distribution>repo</distribution>
+        </license>
+      </licenses>
+    </project>
+  </supplement>
+  <supplement>
+    <project>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
+      <name>Jakarta XML Bind API</name>
+
+      <url>https://github.com/eclipse-ee4j/jaxb-api.git/jakarta.xml.bind-api</url>
+      <licenses>
+        <license>
+          <name>Eclipse Distribution License 1.0</name>
+          <url>http://www.eclipse.org/org/documents/edl-v10.php</url>
+          <distribution>repo</distribution>
+        </license>
+      </licenses>
+    </project>
+  </supplement>
+
 </supplementalDataModels>
