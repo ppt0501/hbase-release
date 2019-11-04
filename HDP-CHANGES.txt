@@ -1,0 +1,12 @@
+The following issues are included over Apache HBase 2.1.6
+
+BUG-122228 HBASE-15519 Add per-user metrics with lossy counting
+BUG-122227 HBASE-23054 Remove synchronization block from MetaTableMetrics and fix LossyCounting algorithm
+BUG-122138 Upgrade jackson to 2.10.0 in HBase
+BUG-122129 Incremental backup fails: phoenix-server.jar is missing from HBase classpath
+BUG-122069 Classpath issues with Backup/Restore in HBase 2.1
+BUG-122071 HBase+Spark yarn-cluster tests failing to acquire HBase delegation token
+BUG-122066 Build hbase shaded jar for AWS dependencies
+BUG-122067 Add hadoop-aws dependency in hbase
+BUG-121935 HBASE-22380 break circle replication when doing bulkload
+BUG-121788 HBASE-22012 Prevent DISABLE quota violation policy from disabling violation policy
