@@ -2606,7 +2606,6 @@ public class HStore implements Store, HeapSize, StoreConfigInformation, Propagat
           StoreFileReader r = file.getReader();
           if (r == null) {
             LOG.debug("The file {} was closed but still not archived", file);
-            filesToRemove.add(file);
             // HACK: Temporarily re-open the reader so we can get the size of the file. Ideally,
             // we should know the size of an HStoreFile without having to ask the HStoreFileReader
             // for that.
