@@ -19,13 +19,19 @@
 package org.apache.hadoop.hbase.regionserver;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.DroppedSnapshotException;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.RemoteExceptionHandler;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.master.TableLockManager.TableLock;
+import org.apache.hadoop.hbase.mob.MobUtils;
 import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.util.StringUtils;
@@ -91,7 +97,20 @@ class RegionMergeRequest implements Runnable {
       // the prepare call -- we are not ready to merge just now. Just return.
       if (!mt.prepare(this.server)) return;
       try {
-        mt.execute(this.server, this.server, this.user);
+        HRegion merged = mt.execute(this.server, this.server, this.user);
+//        Configuration conf = server.getConfiguration();
+//        HTableDescriptor htd = merged.getTableDesc();
+//        if (MobUtils.hasMobColumns(htd)) {
+//          TableName tableName = htd.getTableName();
+//          String region_A_Name = region_a.getRegionInfo().getEncodedName();
+//          String region_B_Name = region_b.getRegionInfo().getEncodedName();
+//          String mergedName = merged.getRegionInfo().getEncodedName();
+//          List<HColumnDescriptor> mobFams = MobUtils.getMobColumnFamilies(htd);
+//          for (HColumnDescriptor hcd: mobFams) {
+//            MobUtils.createRegionsMergeMarker(conf, tableName, hcd.getNameAsString(),
+//              region_A_Name, region_B_Name, mergedName);
+//          }
+//        }
       } catch (Exception e) {
         if (this.server.isStopping() || this.server.isStopped()) {
           LOG.info(

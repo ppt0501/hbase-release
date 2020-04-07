@@ -25,26 +25,23 @@ import java.security.KeyException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellComparator;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
@@ -55,6 +52,10 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.Tag;
 import org.apache.hadoop.hbase.TagType;
 import org.apache.hadoop.hbase.backup.HFileArchiver;
+import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.HFileLink;
 import org.apache.hadoop.hbase.io.compress.Compression;
@@ -63,10 +64,6 @@ import org.apache.hadoop.hbase.io.crypto.Encryption;
 import org.apache.hadoop.hbase.io.hfile.CacheConfig;
 import org.apache.hadoop.hbase.io.hfile.HFileContext;
 import org.apache.hadoop.hbase.io.hfile.HFileContextBuilder;
-import org.apache.hadoop.hbase.master.TableLockManager;
-import org.apache.hadoop.hbase.master.TableLockManager.TableLock;
-import org.apache.hadoop.hbase.mob.compactions.MobCompactor;
-import org.apache.hadoop.hbase.mob.compactions.PartitionedMobCompactor;
 import org.apache.hadoop.hbase.regionserver.BloomType;
 import org.apache.hadoop.hbase.regionserver.HStore;
 import org.apache.hadoop.hbase.regionserver.StoreFile;
@@ -75,8 +72,7 @@ import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.FSUtils;
-import org.apache.hadoop.hbase.util.ReflectionUtils;
-import org.apache.hadoop.hbase.util.Threads;
+import org.apache.hadoop.hbase.util.HFileArchiveUtil;
 
 /**
  * The mob utilities
@@ -85,6 +81,8 @@ import org.apache.hadoop.hbase.util.Threads;
 public class MobUtils {
 
   private static final Log LOG = LogFactory.getLog(MobUtils.class);
+
+  public static final String SEP = "_";
 
   private static final ThreadLocal<SimpleDateFormat> LOCAL_FORMAT =
       new ThreadLocal<SimpleDateFormat>() {
@@ -369,6 +367,23 @@ public class MobUtils {
   }
 
   /**
+   * Gets region encoded name from a MOB file name
+   * @param name name of a MOB file
+   * @return encoded region name
+   *
+   */
+  public static String getEncodedRegionNameFromMobFileName(String mobFileName)
+  {
+    int index = mobFileName.lastIndexOf(MobFileName.REGION_SEP);
+    if (index > 0) {
+      return mobFileName.substring(index+1);
+    } else {
+      return null;
+    }
+  }
+
+
+  /**
    * Gets whether the current HRegionInfo is a mob one.
    * @param regionInfo The current HRegionInfo.
    * @return If true, the current HRegionInfo is a mob one.
@@ -388,15 +403,6 @@ public class MobUtils {
     return Bytes.equals(regionName, getMobRegionInfo(tableName).getRegionName());
   }
 
-  /**
-   * Gets the working directory of the mob compaction.
-   * @param root The root directory of the mob compaction.
-   * @param jobName The current job name.
-   * @return The directory of the mob compaction for the current job.
-   */
-  public static Path getCompactionWorkingPath(Path root, String jobName) {
-    return new Path(root, jobName);
-  }
 
   /**
    * Archives the mob files.
@@ -413,6 +419,40 @@ public class MobUtils {
     HFileArchiver.archiveStoreFiles(conf, fs, getMobRegionInfo(tableName), tableDir, family,
         storeFiles);
   }
+
+  /**
+   * Archives the mob files.
+   * @param conf The current configuration.
+   * @param tableName The table name.
+   * @param family The name of the column family.
+   * @param storeFiles The files to be archived.
+   * @throws IOException
+   */
+  public static void removeMobFiles(Configuration conf, TableName tableName,
+    byte[] family, List<Path> storeFiles) throws IOException {
+
+    if (storeFiles.size() == 0) {
+      // nothing to remove
+      LOG.debug("Skipping archiving old MOB file: collection is empty");
+      return;
+    }
+    Path mobTableDir = FSUtils.getTableDir(MobUtils.getMobHome(conf), tableName);
+    FileSystem fs = storeFiles.get(0).getFileSystem(conf);
+    Path storeArchiveDir = HFileArchiveUtil.getStoreArchivePath(conf, getMobRegionInfo(tableName),
+      mobTableDir, family);
+
+    for (Path p: storeFiles) {
+      Path archiveFilePath = new Path(storeArchiveDir, p.getName());
+      if (fs.exists(archiveFilePath)) {
+        LOG.info("DDDD MOB Cleaner skip archiving: " + p);
+        continue;
+      }
+      LOG.info("DDDD MOB Cleaner archiving: " + p);
+      HFileArchiver.archiveStoreFile(conf, fs, getMobRegionInfo(tableName), mobTableDir, family, p);
+    }
+  }
+
+
 
   /**
    * Creates a mob reference KeyValue.
@@ -467,10 +507,10 @@ public class MobUtils {
   public static StoreFile.Writer createWriter(Configuration conf, FileSystem fs,
       HColumnDescriptor family, String date, Path basePath, long maxKeyCount,
       Compression.Algorithm compression, String startKey, CacheConfig cacheConfig,
-      Encryption.Context cryptoContext)
+      Encryption.Context cryptoContext, String regionName)
       throws IOException {
     MobFileName mobFileName = MobFileName.create(startKey, date, UUID.randomUUID().toString()
-        .replaceAll("-", ""));
+        .replaceAll("-", ""), regionName);
     return createWriter(conf, fs, family, mobFileName, basePath, maxKeyCount, compression,
       cacheConfig, cryptoContext);
   }
@@ -505,58 +545,6 @@ public class MobUtils {
     return w;
   }
 
-  /**
-   * Creates a writer for the mob file in temp directory.
-   * @param conf The current configuration.
-   * @param fs The current file system.
-   * @param family The descriptor of the current column family.
-   * @param date The date string, its format is yyyymmmdd.
-   * @param basePath The basic path for a temp directory.
-   * @param maxKeyCount The key count.
-   * @param compression The compression algorithm.
-   * @param startKey The start key.
-   * @param cacheConfig The current cache config.
-   * @param cryptoContext The encryption context.
-   * @return The writer for the mob file.
-   * @throws IOException
-   */
-  public static StoreFile.Writer createWriter(Configuration conf, FileSystem fs,
-      HColumnDescriptor family, String date, Path basePath, long maxKeyCount,
-      Compression.Algorithm compression, byte[] startKey, CacheConfig cacheConfig,
-      Encryption.Context cryptoContext)
-      throws IOException {
-    MobFileName mobFileName = MobFileName.create(startKey, date, UUID.randomUUID().toString()
-        .replaceAll("-", ""));
-    return createWriter(conf, fs, family, mobFileName, basePath, maxKeyCount, compression,
-      cacheConfig, cryptoContext);
-  }
-
-  /**
-   * Creates a writer for the del file in temp directory.
-   * @param conf The current configuration.
-   * @param fs The current file system.
-   * @param family The descriptor of the current column family.
-   * @param date The date string, its format is yyyymmmdd.
-   * @param basePath The basic path for a temp directory.
-   * @param maxKeyCount The key count.
-   * @param compression The compression algorithm.
-   * @param startKey The start key.
-   * @param cacheConfig The current cache config.
-   * @param cryptoContext The encryption context.
-   * @return The writer for the del file.
-   * @throws IOException
-   */
-  public static StoreFile.Writer createDelFileWriter(Configuration conf, FileSystem fs,
-      HColumnDescriptor family, String date, Path basePath, long maxKeyCount,
-      Compression.Algorithm compression, byte[] startKey, CacheConfig cacheConfig,
-      Encryption.Context cryptoContext)
-      throws IOException {
-    String suffix = UUID
-      .randomUUID().toString().replaceAll("-", "") + "_del";
-    MobFileName mobFileName = MobFileName.create(startKey, date, suffix);
-    return createWriter(conf, fs, family, mobFileName, basePath, maxKeyCount, compression,
-      cacheConfig, cryptoContext);
-  }
 
   /**
    * Creates a writer for the mob file in temp directory.
@@ -695,86 +683,7 @@ public class MobUtils {
     return TableName.valueOf(Bytes.add(tableName, MobConstants.MOB_TABLE_LOCK_SUFFIX));
   }
 
-  /**
-   * Performs the mob compaction.
-   * @param conf the Configuration
-   * @param fs the file system
-   * @param tableName the table the compact
-   * @param hcd the column descriptor
-   * @param pool the thread pool
-   * @param tableLockManager the tableLock manager
-   * @param allFiles Whether add all mob files into the compaction.
-   */
-  public static void doMobCompaction(Configuration conf, FileSystem fs, TableName tableName,
-    HColumnDescriptor hcd, ExecutorService pool, TableLockManager tableLockManager,
-    boolean allFiles) throws IOException {
-    String className = conf.get(MobConstants.MOB_COMPACTOR_CLASS_KEY,
-      PartitionedMobCompactor.class.getName());
-    // instantiate the mob compactor.
-    MobCompactor compactor = null;
-    try {
-      compactor = ReflectionUtils.instantiateWithCustomCtor(className, new Class[] {
-        Configuration.class, FileSystem.class, TableName.class, HColumnDescriptor.class,
-        ExecutorService.class }, new Object[] { conf, fs, tableName, hcd, pool });
-    } catch (Exception e) {
-      throw new IOException("Unable to load configured mob file compactor '" + className + "'", e);
-    }
-    // compact only for mob-enabled column.
-    // obtain a write table lock before performing compaction to avoid race condition
-    // with major compaction in mob-enabled column.
-    boolean tableLocked = false;
-    TableLock lock = null;
-    try {
-      // the tableLockManager might be null in testing. In that case, it is lock-free.
-      if (tableLockManager != null) {
-        lock = tableLockManager.writeLock(MobUtils.getTableLockName(tableName),
-          "Run MobCompactor");
-        lock.acquire();
-      }
-      tableLocked = true;
-      compactor.compact(allFiles);
-    } catch (Exception e) {
-      LOG.error("Failed to compact the mob files for the column " + hcd.getNameAsString()
-        + " in the table " + tableName.getNameAsString(), e);
-    } finally {
-      if (lock != null && tableLocked) {
-        try {
-          lock.release();
-        } catch (IOException e) {
-          LOG.error(
-            "Failed to release the write lock for the table " + tableName.getNameAsString(), e);
-        }
-      }
-    }
-  }
 
-  /**
-   * Creates a thread pool.
-   * @param conf the Configuration
-   * @return A thread pool.
-   */
-  public static ExecutorService createMobCompactorThreadPool(Configuration conf) {
-    int maxThreads = conf.getInt(MobConstants.MOB_COMPACTION_THREADS_MAX,
-      MobConstants.DEFAULT_MOB_COMPACTION_THREADS_MAX);
-    if (maxThreads == 0) {
-      maxThreads = 1;
-    }
-    final SynchronousQueue<Runnable> queue = new SynchronousQueue<Runnable>();
-    ThreadPoolExecutor pool = new ThreadPoolExecutor(1, maxThreads, 60, TimeUnit.SECONDS, queue,
-      Threads.newDaemonThreadFactory("MobCompactor"), new RejectedExecutionHandler() {
-        @Override
-        public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-          try {
-            // waiting for a thread to pick up instead of throwing exceptions.
-            queue.put(r);
-          } catch (InterruptedException e) {
-            throw new RejectedExecutionException(e);
-          }
-        }
-      });
-    ((ThreadPoolExecutor) pool).allowCoreThreadTimeOut(true);
-    return pool;
-  }
 
   /**
    * Creates the encyption context.
@@ -860,6 +769,140 @@ public class MobUtils {
   }
 
   /**
+   * Get list of Mob column families (if any exists)
+   * @param htd table descriptor
+   * @return list of Mob column families
+   */
+  public static List<HColumnDescriptor> getMobColumnFamilies(HTableDescriptor htd){
+
+    List<HColumnDescriptor> fams = new ArrayList<HColumnDescriptor>();
+    HColumnDescriptor[] hcds = htd.getColumnFamilies();
+    for (HColumnDescriptor hcd : hcds) {
+      if (hcd.isMobEnabled()) {
+        fams.add(hcd);
+      }
+    }
+    return fams;
+  }
+
+  /**
+   * Performs housekeeping file cleaning (called by MOB Cleaner chore)
+   * @param conf configuration
+   * @param table table name
+   * @throws IOException
+   */
+  public static void cleanupObsoleteMobFiles(Configuration conf, TableName table)
+      throws IOException {
+
+    try (final Connection conn = ConnectionFactory.createConnection(conf);
+        final Admin admin = conn.getAdmin();) {
+      HTableDescriptor htd = admin.getTableDescriptor(table);
+      List<HColumnDescriptor> list = getMobColumnFamilies(htd);
+      if (list.size() == 0) {
+        LOG.info("Skipping non-MOB table [" + table + "]");
+        return;
+      }
+      Path rootDir = FSUtils.getRootDir(conf);
+      Path tableDir = FSUtils.getTableDir(rootDir, table);
+      // How safe is this call?
+      List<Path> regionDirs = FSUtils.getRegionDirs(FileSystem.get(conf), tableDir);
+
+      Set<String> allActiveMobFileName = new HashSet<String>();
+      FileSystem fs = FileSystem.get(conf);
+      for (Path regionPath: regionDirs) {
+        for (HColumnDescriptor hcd: list) {
+          String family = hcd.getNameAsString();
+          Path storePath = new Path(regionPath, family);
+          boolean succeed = false;
+          Set<String> regionMobs = new HashSet<String>();
+          while(!succeed) {
+            //TODO handle FNFE
+            RemoteIterator<LocatedFileStatus> rit = fs.listLocatedStatus(storePath);
+            List<Path> storeFiles = new ArrayList<Path>();
+            // Load list of store files first
+            while(rit.hasNext()) {
+              Path p = rit.next().getPath();
+              if (fs.isFile(p)) {
+                storeFiles.add(p);
+              }
+            }
+            try {
+              for(Path pp: storeFiles) {
+                StoreFile sf = new StoreFile(fs, pp, conf, CacheConfig.DISABLED, BloomType.NONE);
+                sf.createReader();
+                byte[] mobRefData = sf.getMetadataValue(StoreFile.MOB_FILE_REFS);
+                byte[] mobCellCountData = sf.getMetadataValue(StoreFile.MOB_CELLS_COUNT);
+                if (mobRefData == null && mobCellCountData != null) {
+                  LOG.info("Found old store file with no MOB_FILE_REFS: " + pp
+                    +" - can not proceed until all old files will be MOB-compacted");
+                  return;
+                } else if (mobRefData == null) {
+                  LOG.info("Skipping file without MOB references (can be bulkloaded file):"+ pp);
+                  continue;
+                }
+                String[] mobs = new String(mobRefData).split(",");
+                regionMobs.addAll(Arrays.asList(mobs));
+              }
+            } catch (FileNotFoundException e) {
+              //TODO
+              LOG.warn(e.getMessage());
+              continue;
+            }
+            succeed = true;
+          }
+          // Add MOB refs for current region/family
+          allActiveMobFileName.addAll(regionMobs);
+        } // END column families
+      }//END regions
+
+      // Now scan MOB directories and find MOB files with no references to them
+      long now = System.currentTimeMillis();
+      long minAgeToArchive = conf.getLong(MobConstants.MOB_MINIMUM_FILE_AGE_TO_ARCHIVE_KEY,
+                              MobConstants.DEFAULT_MOB_MINIMUM_FILE_AGE_TO_ARCHIVE);
+      for (HColumnDescriptor hcd: list) {
+          List<Path> toArchive = new ArrayList<Path>();
+          String family = hcd.getNameAsString();
+          Path dir = getMobFamilyPath(conf, table, family);
+          RemoteIterator<LocatedFileStatus> rit = fs.listLocatedStatus(dir);
+          while(rit.hasNext()) {
+            LocatedFileStatus lfs = rit.next();
+            Path p = lfs.getPath();
+            if (!allActiveMobFileName.contains(p.getName())) {
+              // MOB is not in a list of active references, but it can be too
+              // fresh, skip it in this case
+              /*DEBUG*/ LOG.debug("DDDD Age=" + (now - fs.getFileStatus(p).getModificationTime()) +
+                " MOB file="+ p);
+              if (now - fs.getFileStatus(p).getModificationTime() > minAgeToArchive) {
+                toArchive.add(p);
+              } else {
+                LOG.debug("DDDD Skipping fresh file: " + p);
+              }
+            }
+          }
+          LOG.info("DDDD MOB Cleaner found "+ toArchive.size()+" files for family="+family);
+          removeMobFiles(conf, table, family.getBytes(), toArchive);
+          LOG.info("DDDD MOB Cleaner archived "+ toArchive.size()+" files");
+      }
+    }
+  }
+
+
+
+
+  public static long getNumberOfMobFiles(Configuration conf, TableName tableName, String family)
+      throws IOException {
+    FileSystem fs = FileSystem.get(conf);
+    Path dir = getMobFamilyPath(conf, tableName, family);
+    FileStatus[] stat = fs.listStatus(dir);
+    for (FileStatus st: stat) {
+      LOG.info("DDDD MOB Directory content: "+ st.getPath());
+    }
+    LOG.info("DDDD MOB Directory content total files: "+ stat.length);
+
+    return stat.length;
+  }
+
+  /**
    * Indicates whether return null value when the mob file is missing or corrupt.
    * The information is set in the attribute "empty.value.on.mobcell.miss" of scan.
    * @param scan The current scan.
@@ -896,23 +939,6 @@ public class MobUtils {
       storeFileList.add(new StoreFile(fs, file.getPath(), conf, cacheConfig, BloomType.NONE));
     }
     HFileArchiver.archiveStoreFiles(conf, fs, mobRegionInfo, mobFamilyDir, family, storeFileList);
-  }
-  /**
-   * Creates a mob ref delete marker.
-   * @param cell The current delete marker.
-   * @return A delete marker with the ref tag.
-   */
-  public static Cell createMobRefDeleteMarker(Cell cell) {
-    List<Tag> refTag = new ArrayList<Tag>();
-    refTag.add(MobConstants.MOB_REF_TAG);
-    List<Tag> tags = Tag.carryForwardTags(refTag, cell);
-    KeyValue reference = new KeyValue(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength(),
-        cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength(),
-        cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength(),
-        cell.getTimestamp(), KeyValue.Type.codeToType(cell.getTypeByte()), cell.getValueArray(),
-        cell.getValueOffset(), cell.getValueLength(), tags);
-    reference.setSequenceId(cell.getSequenceId());
-    return reference;
   }
 
   /**

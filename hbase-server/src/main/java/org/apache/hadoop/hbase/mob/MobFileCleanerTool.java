@@ -44,9 +44,9 @@ import com.google.protobuf.ServiceException;
  * The cleaner to delete the expired MOB files.
  */
 @InterfaceAudience.Private
-public class ExpiredMobFileCleaner extends Configured implements Tool {
+public class MobFileCleanerTool extends Configured implements Tool {
 
-  private static final Log LOG = LogFactory.getLog(ExpiredMobFileCleaner.class);
+  private static final Log LOG = LogFactory.getLog(MobFileCleanerTool.class);
   /**
    * Cleans the MOB files when they're expired and their min versions are 0.
    * If the latest timestamp of Cells in a MOB file is older than the TTL in the column family,
@@ -76,12 +76,12 @@ public class ExpiredMobFileCleaner extends Configured implements Tool {
 
   public static void main(String[] args) throws Exception {
     Configuration conf = HBaseConfiguration.create();
-    ToolRunner.run(conf, new ExpiredMobFileCleaner(), args);
+    ToolRunner.run(conf, new MobFileCleanerTool(), args);
   }
 
   private void printUsage() {
     System.err.println("Usage:\n" + "--------------------------\n"
-        + ExpiredMobFileCleaner.class.getName() + " tableName familyName");
+        + MobFileCleanerTool.class.getName() + " tableName familyName");
     System.err.println(" tableName        The table name");
     System.err.println(" familyName       The column family name");
   }

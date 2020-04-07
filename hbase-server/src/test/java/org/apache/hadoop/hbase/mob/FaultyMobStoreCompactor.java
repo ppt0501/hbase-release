@@ -1,4 +1,5 @@
 /**
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,12 +22,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -34,181 +33,64 @@ import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValueUtil;
-import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.Tag;
 import org.apache.hadoop.hbase.TagType;
-import org.apache.hadoop.hbase.classification.InterfaceAudience;
-import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.regionserver.HMobStore;
+import org.apache.hadoop.hbase.io.hfile.CorruptHFileException;
 import org.apache.hadoop.hbase.regionserver.HStore;
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
-import org.apache.hadoop.hbase.regionserver.ScanType;
 import org.apache.hadoop.hbase.regionserver.ScannerContext;
 import org.apache.hadoop.hbase.regionserver.Store;
 import org.apache.hadoop.hbase.regionserver.StoreFile.Writer;
-import org.apache.hadoop.hbase.regionserver.StoreFileScanner;
-import org.apache.hadoop.hbase.regionserver.StoreScanner;
-import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionThroughputController;
-import org.apache.hadoop.hbase.regionserver.compactions.DefaultCompactor;
-import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.util.Bytes;
 
-import com.google.common.collect.Lists;
+public class FaultyMobStoreCompactor extends DefaultMobStoreCompactor
+{
 
-/**
- * Compact passed set of files in the mob-enabled column family.
- */
-@InterfaceAudience.Private
-public class DefaultMobStoreCompactor extends DefaultCompactor {
+  public static AtomicLong mobCounter = new AtomicLong();
+  public static AtomicLong totalFailures = new AtomicLong();
+  public static AtomicLong totalCompactions = new AtomicLong();
+  public static AtomicLong totalMajorCompactions = new AtomicLong();
 
-  protected static final Log LOG = LogFactory.getLog(DefaultMobStoreCompactor.class);
-  protected long mobSizeThreshold;
-  protected HMobStore mobStore;
-
-  // MOB file reference set
-  static ThreadLocal<Set<String>> mobRefSet = new ThreadLocal<Set<String>>() {
-    @Override
-    protected Set<String> initialValue() {
-      return new HashSet<String>();
-    }
-  };
-
-  static ThreadLocal<Boolean> userRequest = new ThreadLocal<Boolean> () {
-    @Override
-    protected Boolean initialValue() {
-      return Boolean.FALSE;
-    }
-  };
+  static double failureProb = 0.1d;
+  static Random rnd = new Random();
 
 
-  private final InternalScannerFactory scannerFactory = new InternalScannerFactory() {
-
-    @Override
-    public ScanType getScanType(CompactionRequest request) {
-      return request.isAllFiles() ? ScanType.COMPACT_DROP_DELETES
-          : ScanType.COMPACT_RETAIN_DELETES;
-    }
-
-    @Override
-    public InternalScanner createScanner(List<StoreFileScanner> scanners,
-        ScanType scanType, FileDetails fd, long smallestReadPoint) throws IOException {
-      Scan scan = new Scan();
-      scan.setMaxVersions(store.getFamily().getMaxVersions());
-      // retain the delete markers until they are expired.
-      return new StoreScanner(store, store.getScanInfo(), scan, scanners,
-          scanType, smallestReadPoint, fd.earliestPutTs);
-    }
-  };
-
-  private final CellSinkFactory<Writer> writerFactory = new CellSinkFactory<Writer>() {
-
-    @Override
-    public Writer createWriter(InternalScanner scanner,
-        org.apache.hadoop.hbase.regionserver.compactions.Compactor.FileDetails fd,
-        boolean shouldDropBehind) throws IOException {
-      // make this writer with tags always because of possible new cells with tags.
-      return store.createWriterInTmp(fd.maxKeyCount, compactionCompression, true, true, true);
-    }
-  };
-
-  public DefaultMobStoreCompactor(Configuration conf, Store store) {
+  public FaultyMobStoreCompactor(Configuration conf, Store store) {
     super(conf, store);
-    // The mob cells reside in the mob-enabled column family which is held by HMobStore.
-    // During the compaction, the compactor reads the cells from the mob files and
-    // probably creates new mob files. All of these operations are included in HMobStore,
-    // so we need to cast the Store to HMobStore.
-    if (!(store instanceof HMobStore)) {
-      throw new IllegalArgumentException("The store " + store + " is not a HMobStore");
-    }
-    mobStore = (HMobStore) store;
-    mobSizeThreshold = store.getFamily().getMobThreshold();
+    failureProb = conf.getDouble("injected.fault.probability", 0.1);
   }
-
-  @Override
-  public List<Path> compact(CompactionRequest request,
-    CompactionThroughputController throughputController, User user) throws IOException {
-    LOG.debug("DDDD COMPACTION: major="+ request.isMajor() + " isAll="+ request.isAllFiles()
-      + " priority=" + request.getPriority());
-    if (request.getPriority() == Store.PRIORITY_USER) {
-      userRequest.set(Boolean.TRUE);
-    } else {
-      userRequest.set(Boolean.FALSE);
-    }
-
-    LOG.debug("DDDD files: "+ request.getFiles());
-    return compact(request, scannerFactory, writerFactory, throughputController, user);
-  }
-
-  // TODO refactor to take advantage of the throughput controller.
-
-  /**
-   * Performs compaction on a column family with the mob flag enabled.
-   * This is for when the mob threshold size has changed or if the mob
-   * column family mode has been toggled via an alter table statement.
-   * Compacts the files by the following rules.
-   * 1. If the Put cell has a mob reference tag, the cell's value is the path of the mob file.
-   * <ol>
-   * <li>
-   * If the value size of a cell is larger than the threshold, this cell is regarded as a mob,
-   * directly copy the (with mob tag) cell into the new store file.
-   * </li>
-   * <li>
-   * Otherwise, retrieve the mob cell from the mob file, and writes a copy of the cell into
-   * the new store file.
-   * </li>
-   * </ol>
-   * 2. If the Put cell doesn't have a reference tag.
-   * <ol>
-   * <li>
-   * If the value size of a cell is larger than the threshold, this cell is regarded as a mob,
-   * write this cell to a mob file, and write the path of this mob file to the store file.
-   * </li>
-   * <li>
-   * Otherwise, directly write this cell into the store file.
-   * </li>
-   * </ol>
-   * 3. Decide how to write a Delete cell.
-   * <ol>
-   * <li>
-   * If a Delete cell does not have a mob reference tag which means this delete marker have not
-   * been written to the mob del file, write this cell to the mob del file, and write this cell
-   * with a ref tag to a store file.
-   * </li>
-   * <li>
-   * Otherwise, directly write it to a store file.
-   * </li>
-   * </ol>
-   * After the major compaction on the normal hfiles, we have a guarantee that we have purged all
-   * deleted or old version mob refs, and the delete markers are written to a del file with the
-   * suffix _del. Because of this, it is safe to use the del file in the mob compaction.
-   * The mob compaction doesn't take place in the normal hfiles, it occurs directly in the
-   * mob files. When the small mob files are merged into bigger ones, the del file is added into
-   * the scanner to filter the deleted cells.
-   * @param fd File details
-   * @param scanner Where to read from.
-   * @param writer Where to write to.
-   * @param smallestReadPoint Smallest read point.
-   * @param cleanSeqId When true, remove seqId(used to be mvcc) value which is <= smallestReadPoint
-   * @param throughputController The compaction throughput controller.
-   * @param major Is a major compaction.
-   * @return Whether compaction ended; false if it was interrupted for any reason.
-   */
 
   @Override
   protected boolean performCompaction(FileDetails fd, InternalScanner scanner, CellSink writer,
       long smallestReadPoint, boolean cleanSeqId,
       CompactionThroughputController throughputController, boolean major) throws IOException {
 
-    int bytesWritten = 0;
     // Clear old mob references
     mobRefSet.get().clear();
 
+    totalCompactions.incrementAndGet();
+    if (major) {
+      totalMajorCompactions.incrementAndGet();
+    }
     boolean isUserRequest = userRequest.get();
 
     boolean compactMOBs = major && isUserRequest;
     boolean discardMobMiss = conf.getBoolean(MobConstants.MOB_DISCARD_MISS_KEY,
                                              MobConstants.DEFAULT_MOB_DISCARD_MISS);
+
+    boolean mustFail = false;
+    if (compactMOBs) {
+      mobCounter.incrementAndGet();
+      double dv = rnd.nextDouble();
+      if (dv < failureProb) {
+        mustFail = true;
+        totalFailures.incrementAndGet();
+      }
+    }
+
+    int bytesWritten = 0;
+
     FileSystem fs = FileSystem.get(conf);
     // Since scanner.next() can return 'false' but still be delivering data,
     // we have to use a do/while loop.
@@ -227,12 +109,17 @@ public class DefaultMobStoreCompactor extends DefaultCompactor {
     long cellsSizeCompactedFromMob = 0;
     Throwable failure = null;
     Cell mobCell = null;
+
+    long counter = 0;
+    long countFailAt = -1;
+    if (mustFail) {
+      countFailAt = rnd.nextInt(100); // randomly fail fast
+    }
     try {
       try {
         mobFileWriter = mobStore.createWriterInTmp(new Date(fd.latestPutTs), fd.maxKeyCount,
           store.getFamily().getCompression(), store.getRegionInfo().getStartKey());
         fileName = Bytes.toBytes(mobFileWriter.getPath().getName());
-
       } catch (IOException e) {
         // Bailing out
         LOG.error("Failed to create mob writer, ", e);
@@ -252,9 +139,14 @@ public class DefaultMobStoreCompactor extends DefaultCompactor {
         hasMore = scanner.next(cells, scannerContext);
         // output to writer:
         for (Cell c : cells) {
-
+          counter++;
           if (compactMOBs) {
             if (MobUtils.isMobReferenceCell(c)) {
+
+              if (counter == countFailAt) {
+                LOG.warn("\n\n INJECTED FAULT mobCounter="+mobCounter.get()+"\n\n");
+                throw new CorruptHFileException("injected fault");
+              }
               String fName = MobUtils.getMobFileName(c);
               Path pp = new Path(new Path(fs.getUri()), new Path(path, fName));
 
@@ -263,7 +155,7 @@ public class DefaultMobStoreCompactor extends DefaultCompactor {
                 mobCell = mobStore.resolve(c, true, false);
               } catch (FileNotFoundException fnfe) {
                 if (discardMobMiss) {
-                  LOG.error("Missing MOB cell: file=" + pp + " not found");
+                  LOG.error("Missing MOB cell: file=" + pp + " not found for cell="+c);
                   continue;
                 } else {
                   throw fnfe;
@@ -301,12 +193,12 @@ public class DefaultMobStoreCompactor extends DefaultCompactor {
               }
             }
           } else if (c.getTypeByte() != KeyValue.Type.Put.getCode()) {
-            // Not a major compaction or major with MOB disabled
+            // Not a major compaction
             // If the kv type is not put, directly write the cell
             // to the store file.
             writer.append(c);
           } else if (MobUtils.isMobReferenceCell(c)) {
-            // Not a major MOB compaction, Put MOB reference
+            // Not a major compaction, Put and MOB ref
             if (MobUtils.hasValidMobRefCellValue(c)) {
 
               // Add MOB reference to a set
@@ -374,6 +266,9 @@ public class DefaultMobStoreCompactor extends DefaultCompactor {
         }
         cells.clear();
       } while (hasMore);
+    } catch (FileNotFoundException e) {
+      LOG.error("MOB Stress Test FAILED, region: "+store.getRegionInfo().getEncodedName(), e);
+      System.exit(-1);
     } catch (IOException t) {
       failure = t;
       LOG.error("DDDD COMPACTION failed for region: "+ store.getRegionInfo().getEncodedName());
@@ -391,7 +286,6 @@ public class DefaultMobStoreCompactor extends DefaultCompactor {
           boolean result = store.getFileSystem().delete(p, true);
           LOG.warn("DDDD Deletion of MOB file in ./tmp: "+ p + " result="+ result);
         }
-
         // Remove all MOB references because compaction failed
         mobRefSet.get().clear();
       }
@@ -410,6 +304,7 @@ public class DefaultMobStoreCompactor extends DefaultCompactor {
         }
       }
     }
+
     mobStore.updateCellsCountCompactedFromMob(cellsCountCompactedFromMob);
     mobStore.updateCellsCountCompactedToMob(cellsCountCompactedToMob);
     mobStore.updateCellsSizeCompactedFromMob(cellsSizeCompactedFromMob);
@@ -418,22 +313,5 @@ public class DefaultMobStoreCompactor extends DefaultCompactor {
     return true;
   }
 
-
-  protected static String createKey(TableName tableName, String encodedName,
-      String columnFamilyName) {
-    return tableName.getNameAsString()+ "_" + encodedName + "_"+ columnFamilyName;
-  }
-
-  @Override
-  protected List<Path> commitWriter(Writer writer, FileDetails fd,
-      CompactionRequest request) throws IOException {
-    List<Path> newFiles = Lists.newArrayList(writer.getPath());
-    writer.appendMetadata(fd.maxSeqId, request.isAllFiles());
-    // Append MOB references
-    Set<String> refSet = mobRefSet.get();
-    writer.appendMobMetadata(refSet);
-    writer.close();
-    return newFiles;
-  }
 
 }

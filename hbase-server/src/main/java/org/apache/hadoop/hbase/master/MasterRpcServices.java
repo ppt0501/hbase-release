@@ -1549,12 +1549,8 @@ public class MasterRpcServices extends RSRpcServices
       master.checkInitialized();
       byte[] regionName = request.getRegion().getValue().toByteArray();
       TableName tableName = HRegionInfo.getTable(regionName);
-      // if the region is a mob region, do the mob file compaction.
-      if (MobUtils.isMobRegionName(tableName, regionName)) {
-        return compactMob(request, tableName);
-      } else {
-        return super.compactRegion(controller, request);
-      }
+      return super.compactRegion(controller, request);
+
     } catch (IOException ie) {
       throw new ServiceException(ie);
     }
@@ -1585,58 +1581,7 @@ public class MasterRpcServices extends RSRpcServices
     }
   }
 
-  /**
-   * Compacts the mob files in the current table.
-   * @param request the request.
-   * @param tableName the current table name.
-   * @return The response of the mob file compaction.
-   * @throws IOException
-   */
-  private CompactRegionResponse compactMob(final CompactRegionRequest request,
-    TableName tableName) throws IOException {
-    if (!master.getAssignmentManager().getTableStateManager()
-        .isTableState(tableName, ZooKeeperProtos.Table.State.ENABLED)) {
-      throw new DoNotRetryIOException("Table " + tableName + " is not enabled");
-    }
-    boolean allFiles = false;
-    List<HColumnDescriptor> compactedColumns = new ArrayList<HColumnDescriptor>();
-    HColumnDescriptor[] hcds = master.getTableDescriptors().get(tableName).getColumnFamilies();
-    byte[] family = null;
-    if (request.hasFamily()) {
-      family = request.getFamily().toByteArray();
-      for (HColumnDescriptor hcd : hcds) {
-        if (Bytes.equals(family, hcd.getName())) {
-          if (!hcd.isMobEnabled()) {
-            LOG.error("Column family " + hcd.getNameAsString() + " is not a mob column family");
-            throw new DoNotRetryIOException("Column family " + hcd.getNameAsString()
-                    + " is not a mob column family");
-          }
-          compactedColumns.add(hcd);
-        }
-      }
-    } else {
-      for (HColumnDescriptor hcd : hcds) {
-        if (hcd.isMobEnabled()) {
-          compactedColumns.add(hcd);
-        }
-      }
-    }
-    if (compactedColumns.isEmpty()) {
-      LOG.error("No mob column families are assigned in the mob compaction");
-      throw new DoNotRetryIOException(
-              "No mob column families are assigned in the mob compaction");
-    }
-    if (request.hasMajor() && request.getMajor()) {
-      allFiles = true;
-    }
-    String familyLogMsg = (family != null) ? Bytes.toString(family) : "";
-    if (LOG.isTraceEnabled()) {
-      LOG.trace("User-triggered mob compaction requested for table: "
-              + tableName.getNameAsString() + " for column family: " + familyLogMsg);
-    }
-    master.requestMobCompaction(tableName, compactedColumns, allFiles);
-    return CompactRegionResponse.newBuilder().build();
-  }
+
 
   @Override
   public IsBalancerEnabledResponse isBalancerEnabled(RpcController controller,

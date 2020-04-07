@@ -1750,7 +1750,7 @@ public class HStore implements Store {
     finishCompactionRequest(compaction.getRequest());
   }
 
-  private void finishCompactionRequest(CompactionRequest cr) {
+  protected void finishCompactionRequest(CompactionRequest cr) {
     this.region.reportCompactionRequestEnd(cr.isMajor(), cr.getFiles().size(), cr.getSize());
     if (cr.isOffPeak()) {
       offPeakCompactionTracker.set(false);
